@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: daily-life
+    runtime: node
+    buildCommand: ""
+    startCommand: node server/index.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: DATA_ENCRYPTION_KEY
+        generateValue: true
