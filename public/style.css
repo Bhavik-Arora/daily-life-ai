@@ -21,6 +21,10 @@ body:before{content:'';position:fixed;inset:0;z-index:-2;background:radial-gradi
 .sidebar-item span{font-size:14px}
 .sidebar-item:hover,.sidebar-history:hover{background:rgba(135,123,255,.1);color:#c9d5ff}
 .sidebar-bottom{padding:20px;border-top:1px solid rgba(135,123,255,.2)}
+.last7-days{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:8px}
+.day-summary{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer}
+.day-label{font-size:10px;color:#aeb3cc;font-weight:600}
+.day-bar{width:4px;background:linear-gradient(180deg,#42baff,#8c62ff);border-radius:2px;min-height:20px;transition:.2s}
 .sidebar-bottom p{margin:0 0 12px;font-size:12px;color:#aeb3cc;line-height:1.4}
 .signin-btn{width:100%;border:1px solid rgba(137,113,255,.5);background:linear-gradient(115deg,rgba(133,87,255,.26),rgba(40,182,255,.17));color:#fff;border-radius:8px;padding:10px 14px;font:600 13px 'Inter';cursor:pointer;transition:.18s ease}
 .signin-btn:hover{transform:translateY(-1px);border-color:var(--blue)}
