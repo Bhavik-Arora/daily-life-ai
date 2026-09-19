@@ -38,12 +38,11 @@ body:before{content:'';position:fixed;inset:0;z-index:-2;background:radial-gradi
 .signin-btn:hover{transform:translateY(-1px);border-color:var(--blue)}
 .app{flex:1;margin-left:260px;width:calc(100% - 260px);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px}
 .bottom-nav{display:none}
-.view{display:none;width:100%;height:100%}
+.view{display:none;width:100%;height:100%;position:relative}
 .view.active{display:flex;align-items:center;justify-content:center}
 .view-container{width:100%;max-width:800px;display:flex;flex-direction:column;align-items:center}
-.view-header{width:100%;display:flex;align-items:center;gap:16px;margin-bottom:24px}
-.back-btn{border:0;background:none;color:#aeb3cc;font:14px 'Inter';cursor:pointer;padding:8px 12px;border-radius:8px;transition:.2s;display:flex;align-items:center;gap:6px}
-.back-btn:hover{color:#fff;background:rgba(135,123,255,.1)}
+.back-btn-absolute{position:absolute;top:40px;left:40px;border:0;background:none;color:#aeb3cc;font:14px 'Inter';cursor:pointer;padding:8px 12px;border-radius:8px;transition:.2s;display:flex;align-items:center;gap:6px;z-index:10}
+.back-btn-absolute:hover{color:#fff;background:rgba(135,123,255,.1)}
 h1{font-family:'Newsreader',serif;font-size:56px;font-weight:600;margin:0 0 16px;color:var(--ink);text-align:center}
 h2,h3{font-family:'Newsreader',serif;font-weight:600}
 .tagline{font-size:20px;color:var(--muted);text-align:center;margin:0 0 60px;font-weight:400}
