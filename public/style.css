@@ -47,13 +47,13 @@ h1{font-family:'Newsreader',serif;font-size:56px;font-weight:600;margin:0 0 16px
 h2,h3{font-family:'Newsreader',serif;font-weight:600}
 .tagline{font-size:20px;color:var(--muted);text-align:center;margin:0 0 60px;font-weight:400}
 .hero{text-align:center;margin-bottom:40px}
-.chat-container{width:100%;display:flex;flex-direction:column;gap:24px;flex:1;justify-content:flex-start;padding:0;overflow-y:auto;max-height:calc(100vh - 280px)}
-.messages{width:100%;display:grid;gap:16px;max-height:400px;overflow-y:auto;padding:20px 0}
+.chat-container{width:100%;display:flex;flex-direction:column;gap:24px;flex:1;justify-content:flex-start;padding:0;padding-bottom:24px}
+.messages{width:100%;display:grid;gap:16px;padding:20px 0}
 .message{max-width:100%;padding:16px;border-radius:12px;line-height:1.6;font-size:15px;animation:rise .25s ease-out}
 .message.user{justify-self:end;background:linear-gradient(135deg,#714be6,#327de6);color:white;border-bottom-right-radius:4px}
 .message.companion{background:rgba(19,23,49,.72);border:1px solid var(--line);border-bottom-left-radius:4px}
 .message button{float:right;border:0;background:none;color:#85cfff;cursor:pointer;margin-left:8px}
-.chat-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px;width:100%;display:flex;flex-direction:column;gap:16px;box-shadow:0 15px 40px rgba(0,0,0,.15);position:sticky;bottom:0;z-index:50}
+.chat-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px;width:100%;display:flex;flex-direction:column;gap:16px;box-shadow:0 15px 40px rgba(0,0,0,.15);flex-shrink:0}
 .card-header{display:flex;gap:12px;align-items:center}
 .card-header select{flex:1;background:#0a0d21;border:1px solid rgba(135,123,255,.2);border-radius:8px;color:var(--ink);padding:10px;font:14px 'Inter';cursor:pointer}
 .effort-control{background:none;border:1px solid rgba(135,123,255,.2);border-radius:8px;padding:10px 14px;color:#8c9bff;font:600 13px 'Inter';cursor:pointer;white-space:nowrap;transition:.2s}
