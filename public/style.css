@@ -48,8 +48,8 @@ h1{font-family:'Newsreader',serif;font-size:56px;font-weight:600;margin:0 0 16px
 h2,h3{font-family:'Newsreader',serif;font-weight:600}
 .tagline{font-size:20px;color:var(--muted);text-align:center;margin:0 0 60px;font-weight:400}
 .hero{text-align:center;margin-bottom:40px}
-.chat-container{width:100%;max-width:800px;display:flex;flex-direction:column;gap:24px;flex:1;justify-content:flex-start;padding:0;padding-bottom:180px;overflow-y:auto}
-.messages{width:100%;display:grid;gap:16px;padding:20px 0}
+.chat-container{width:100%;display:flex;flex-direction:column;gap:24px;flex:1;justify-content:flex-start;padding:0 40px;padding-bottom:180px;overflow-y:auto}
+.messages{width:100%;display:grid;gap:16px;padding:20px 0;max-width:none}
 .message{max-width:100%;padding:16px;border-radius:12px;line-height:1.6;font-size:15px;animation:rise .25s ease-out}
 .message.user{justify-self:end;background:linear-gradient(135deg,#714be6,#327de6);color:white;border-bottom-right-radius:4px}
 .message.companion{background:rgba(19,23,49,.72);border:1px solid var(--line);border-bottom-left-radius:4px}
