@@ -50,7 +50,7 @@ h2,h3{font-family:'Newsreader',serif;font-weight:600}
 .hero{text-align:center;margin-bottom:40px}
 .chat-container{width:calc(100% + 80px);margin-left:-40px;display:flex;flex-direction:column;gap:24px;flex:1;justify-content:flex-start;padding:0;padding-bottom:180px;overflow-y:auto}
 .messages{width:100%;display:grid;gap:16px;padding:20px 40px}
-.message{padding:16px;border-radius:12px;line-height:1.6;font-size:15px;animation:rise .25s ease-out;word-wrap:break-word}
+.message{padding:16px 40px;border-radius:12px;line-height:1.6;font-size:15px;animation:rise .25s ease-out;word-wrap:break-word}
 .message.user{justify-self:end;background:linear-gradient(135deg,#714be6,#327de6);color:white;border-bottom-right-radius:4px}
 .message.companion{background:rgba(19,23,49,.72);border:1px solid var(--line);border-bottom-left-radius:4px}
 .message button{float:right;border:0;background:none;color:#85cfff;cursor:pointer;margin-left:8px}
