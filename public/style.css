@@ -54,7 +54,7 @@ h2,h3{font-family:'Newsreader',serif;font-weight:600}
 .message.user{justify-self:end;background:linear-gradient(135deg,#714be6,#327de6);color:white;border-bottom-right-radius:4px}
 .message.companion{background:rgba(19,23,49,.72);border:1px solid var(--line);border-bottom-left-radius:4px}
 .message button{float:right;border:0;background:none;color:#85cfff;cursor:pointer;margin-left:8px}
-.chat-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px;width:calc(100% - 520px);display:flex;flex-direction:column;gap:16px;box-shadow:0 15px 40px rgba(0,0,0,.15);position:fixed;bottom:20px;left:50%;transform:translateX(-50%);max-width:800px;flex-shrink:0;z-index:100}
+.chat-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px;width:800px;display:flex;flex-direction:column;gap:16px;box-shadow:0 15px 40px rgba(0,0,0,.15);position:fixed;bottom:20px;left:50%;margin-left:-400px;flex-shrink:0;z-index:100}
 .card-header{display:flex;gap:12px;align-items:center}
 .card-header select{flex:1;background:#0a0d21;border:1px solid rgba(135,123,255,.2);border-radius:8px;color:var(--ink);padding:10px;font:14px 'Inter';cursor:pointer}
 .effort-control{background:none;border:1px solid rgba(135,123,255,.2);border-radius:8px;padding:10px 14px;color:#8c9bff;font:600 13px 'Inter';cursor:pointer;white-space:nowrap;transition:.2s}
