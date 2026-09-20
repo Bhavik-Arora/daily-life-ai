@@ -48,9 +48,9 @@ h1{font-family:'Newsreader',serif;font-size:56px;font-weight:600;margin:0 0 16px
 h2,h3{font-family:'Newsreader',serif;font-weight:600}
 .tagline{font-size:20px;color:var(--muted);text-align:center;margin:0 0 60px;font-weight:400}
 .hero{text-align:center;margin-bottom:40px}
-.chat-container{width:100vw;margin-left:calc(-50vw + 50%);display:flex;flex-direction:column;gap:0;flex:1;justify-content:flex-start;padding:0;padding-bottom:180px;overflow-y:auto}
-.messages{width:100%;display:flex;flex-direction:column;gap:8px;padding:0}
-.message{padding:12px 16px;border-radius:12px;line-height:1.6;font-size:15px;animation:rise .25s ease-out;word-wrap:break-word}
+.chat-container{width:100%;display:flex;flex-direction:column;gap:0;flex:1;justify-content:flex-start;padding:20px 40px;padding-bottom:180px;overflow-y:auto;max-width:100%}
+.messages{width:100%;display:flex;flex-direction:column;gap:12px;padding:0;max-width:900px;margin:0 auto}
+.message{padding:12px 16px;border-radius:8px;line-height:1.6;font-size:14px;animation:rise .25s ease-out;word-wrap:break-word;max-width:100%}
 .message.user{align-self:flex-end;background:linear-gradient(135deg,#714be6,#327de6);color:white;border-bottom-right-radius:4px}
 .message.companion{align-self:flex-start;background:rgba(19,23,49,.72);border:1px solid var(--line);border-bottom-left-radius:4px}
 .message button{float:right;border:0;background:none;color:#85cfff;cursor:pointer;margin-left:8px}
