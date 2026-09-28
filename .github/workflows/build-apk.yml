@@ -7,37 +7,35 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-    - name: Set up JDK 17
+    - name: Setup Java JDK
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
-        cache: gradle
 
-    - name: Install Android SDK
-      run: |
-        $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --update
-        $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0"
-
-    - name: Create www directory
-      run: |
-        mkdir -p www
-        cp -r public/* www/
-
-    - name: Build with Gradle
-      working-directory: ./android
-      run: |
-        chmod +x gradlew
-        ./gradlew assembleDebug --info --no-daemon
-
-    - name: Upload APK
-      if: success()
-      uses: actions/upload-artifact@v4
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
       with:
-        name: daily-life-debug.apk
+        api-levels: '34'
+        build-tools-version: '34.0.0'
+        cache: true
+
+    - name: Make Gradlew executable
+      run: chmod +x android/gradlew
+
+    - name: Build APK
+      run: |
+        cd android
+        ./gradlew clean assembleDebug
+
+    - name: Upload APK Artifact
+      uses: actions/upload-artifact@v4
+      if: success()
+      with:
+        name: app-debug
         path: android/app/build/outputs/apk/debug/app-debug.apk
