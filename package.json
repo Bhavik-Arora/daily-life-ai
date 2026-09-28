@@ -6,13 +6,16 @@
   "scripts": {
     "dev": "node --watch server/index.js",
     "start": "node server/index.js",
-    "test" : "node --test"
-    
+    "test": "node --test"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/core": "^8.5.2",
     "@southdevs/capacitor-google-auth": "^7.0.0"
   }
 }
