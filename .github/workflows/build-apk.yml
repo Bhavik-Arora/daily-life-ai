@@ -20,11 +20,9 @@ jobs:
     - name: Make gradlew executable
       run: chmod +x android/gradlew
 
-    - name: Build with Gradle
-      uses: gradle/gradle-build-action@v2
-      with:
-        build-root-directory: android
-        arguments: assembleDebug
+    - name: Build APK
+      working-directory: android
+      run: ./gradlew assembleDebug --no-daemon
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
