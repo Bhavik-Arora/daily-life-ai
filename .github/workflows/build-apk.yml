@@ -7,7 +7,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
     - uses: actions/checkout@v4
@@ -19,44 +19,23 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
-    - name: Set up Android SDK
+    - name: Setup Android SDK
       uses: android-actions/setup-android@v3
-      with:
-        api-levels: '34'
-        build-tools-version: '34.0.0'
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-
-    - name: Install npm dependencies
-      run: npm ci --legacy-peer-deps
-
-    - name: Copy web assets to www
+    - name: Create www directory
       run: |
         mkdir -p www
         cp -r public/* www/
 
-    - name: Sync Capacitor to Android
-      run: npx @capacitor/cli@latest sync android
-
-    - name: Make gradlew executable
-      run: chmod +x android/gradlew
-
-    - name: Build Debug APK with Gradle
+    - name: Build with Gradle
+      working-directory: ./android
       run: |
-        cd android
-        ./gradlew clean assembleDebug -x lint --stacktrace
+        chmod +x gradlew
+        ./gradlew assembleDebug --info
 
-    - name: Upload APK to artifacts
+    - name: Upload APK
       if: success()
       uses: actions/upload-artifact@v4
       with:
-        name: daily-life-app
+        name: daily-life-debug.apk
         path: android/app/build/outputs/apk/debug/app-debug.apk
-        retention-days: 30
-
-    - name: Build status
-      if: always()
-      run: echo "Build completed with status: ${{ job.status }}"
