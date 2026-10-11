@@ -166,7 +166,7 @@ body:before{background:radial-gradient(ellipse 60% 40% at 50% 0%,rgba(20,60,90,.
 .sidebar{background:rgba(8,8,10,.94);border-right:1px solid rgba(255,255,255,.08);backdrop-filter:blur(12px)}
 .chat-item.active{background:rgba(31,168,216,.16)}
 .sidebar-open{background:rgba(10,10,12,.9)}
-.logo{display:block;width:58px;height:58px;margin:0 auto 20px;transform:rotate(calc(var(--px,0)*160deg));will-change:transform;filter:drop-shadow(0 0 18px rgba(31,168,216,.45))}
+.logo{display:block;width:58px;height:58px;margin:0 auto 20px;filter:drop-shadow(0 0 22px rgba(75,159,232,.4))}
 h1{font-family:'Outfit','Inter',system-ui,sans-serif;font-weight:600;letter-spacing:-.035em;font-size:clamp(36px,6vw,56px);margin:0 0 12px}
 .tagline{font:400 17px/1.5 'Outfit','Inter',system-ui,sans-serif;color:#9a9ca8;max-width:440px;margin:0 auto 28px}
 .hero{margin-bottom:0}
