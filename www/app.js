@@ -160,3 +160,46 @@ $('#cardToggle').onclick=()=>card.classList.toggle('compact');
 
 renderAuth();
 start();
+
+/* ---------- background that follows your finger / cursor ---------- */
+(()=>{
+  const cv=$('#ambient');if(!cv)return;
+  const ctx=cv.getContext&&cv.getContext('2d');if(!ctx)return;
+  const still=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let W=0,H=0,raf=0;const t0=performance.now();
+  const P={x:innerWidth/2,y:innerHeight*.4,tx:innerWidth/2,ty:innerHeight*.4,x2:innerWidth/2,y2:innerHeight*.4,power:.55,last:0};
+  function size(){const dpr=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);}
+  const move=(x,y)=>{P.tx=x;P.ty=y;P.last=performance.now();};
+  addEventListener('pointermove',e=>move(e.clientX,e.clientY),{passive:true});
+  addEventListener('pointerdown',e=>move(e.clientX,e.clientY),{passive:true});
+  const touch=e=>{const t=e.touches[0];if(t)move(t.clientX,t.clientY);};
+  addEventListener('touchstart',touch,{passive:true});addEventListener('touchmove',touch,{passive:true});
+  addEventListener('resize',()=>{size();if(still)frame(performance.now());});
+  function glow(x,y,r,rgb,a){const g=ctx.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,'rgba('+rgb+','+a+')');g.addColorStop(1,'rgba('+rgb+',0)');ctx.fillStyle=g;ctx.fillRect(x-r,y-r,r*2,r*2);}
+  function frame(now){
+    const idle=now-P.last>3500;
+    if(idle&&!still){const t=(now-t0)/1000;P.tx=W*(.5+.28*Math.sin(t*.35));P.ty=H*(.42+.2*Math.cos(t*.27));}
+    P.x+=(P.tx-P.x)*.14;P.y+=(P.ty-P.y)*.14;
+    P.x2+=(P.tx-P.x2)*.05;P.y2+=(P.ty-P.y2)*.05;
+    P.power+=((idle?.55:1)-P.power)*.05;
+    const s=Math.min(W,H)<600?.75:1;
+    ctx.clearRect(0,0,W,H);
+    ctx.globalCompositeOperation='lighter';
+    glow(P.x2,P.y2,430*s,'120,90,255',.17*P.power);
+    glow(P.x,P.y,250*s,'31,168,216',.28*P.power);
+    // dot grid: faint everywhere, bright near the pointer
+    const gap=30,R=170*s;
+    ctx.fillStyle='rgba(170,210,255,.05)';
+    for(let y=gap/2;y<H;y+=gap)for(let x=gap/2;x<W;x+=gap)ctx.fillRect(x-.6,y-.6,1.2,1.2);
+    const x0=Math.max(0,Math.floor((P.x-R)/gap)),x1=Math.ceil((P.x+R)/gap),y0=Math.max(0,Math.floor((P.y-R)/gap)),y1=Math.ceil((P.y+R)/gap);
+    for(let j=y0;j<=y1;j++)for(let i=x0;i<=x1;i++){
+      const x=gap/2+i*gap,y=gap/2+j*gap,d=Math.hypot(x-P.x,y-P.y);if(d>=R)continue;
+      const f=1-d/R,a=.5*f*f*P.power,sz=1.2+1.8*f;
+      ctx.fillStyle='rgba(170,210,255,'+a.toFixed(3)+')';ctx.fillRect(x-sz/2,y-sz/2,sz,sz);
+    }
+    if(!still)document.documentElement.style.setProperty('--px',((P.x/W)-.5).toFixed(3));
+    if(!still&&!document.hidden)raf=requestAnimationFrame(frame);
+  }
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!still){cancelAnimationFrame(raf);raf=requestAnimationFrame(frame);}});
+  size();raf=requestAnimationFrame(frame);
+})();
