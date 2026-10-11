@@ -1,6 +1,6 @@
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 // APK ONLY: set this to your deployed server URL (no trailing slash), e.g. 'https://your-app.onrender.com'. Keep '' for the website.
-const API_BASE='';
+const API_BASE='https://daily-life-ai.onrender.com';
 const KEY='dailylife_v1';
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const blankChat=()=>({id:uid(),createdAt:new Date().toISOString(),messages:[]});
@@ -74,7 +74,7 @@ async function start(){
     if(!had&&remote.length){state.conversations=remote;activeId=remote[remote.length-1].id;}
     prune();
     if($('#displayName'))$('#displayName').value=state.user.displayName||'Friend';
-    if($('#userEmail'))$('#userEmail').value=state.user.email||'not@loggedin.yet';
+    renderAuth();
     renderAll();save();
   }catch(e){console.warn(e);}
 }
@@ -116,7 +116,37 @@ $('#importData').onclick=()=>{let input=document.createElement('input');input.ty
 $('#deleteData').onclick=()=>{if(confirm('Are you sure? This will permanently delete all your data.')){state={user:{displayName:'Friend',streak:1},conversations:[blankChat()],tasks:[]};activeId=state.conversations[0].id;try{localStorage.removeItem(KEY);}catch(e){}renderAll();alert('All data deleted.');}};
 $('#updateProfile').onclick=async()=>{try{const updated=await api('/api/user',{method:'PATCH',body:JSON.stringify({displayName:$('#displayName').value||'Friend'})});state.user=updated;save();alert('Profile updated!');}catch(e){alert('Failed to update profile: '+e.message);}};
 $$('.close').forEach(btn=>btn.onclick=e=>{const d=e.target.closest('dialog');if(d)d.close();});
-$$('.signin-btn').forEach(btn=>btn.onclick=()=>{window.location.href=API_BASE+'/api/auth/google';});
+/* ---------- Google sign-in ---------- */
+// Web client ID from Google Cloud (Credentials > OAuth client ID > Web application). Use the same value as serverClientId in capacitor.config.
+const GOOGLE_WEB_CLIENT_ID='545590780255-ie9s93forogb6fpt34u7v0rocb51fudt.apps.googleusercontent.com';
+let account=null;try{account=JSON.parse(localStorage.getItem('dailylife_account')||'null');}catch(e){}
+const isNative=()=>!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
+const googleAuth=()=>window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.GoogleAuth;
+function renderAuth(){
+  const who=account||(state.user.email?{name:state.user.displayName,email:state.user.email}:null);
+  $$('.signin-btn').forEach(b=>{b.lastElementChild.textContent=who?(who.name||who.email):'Sign in';b.title=account?'Tap to sign out':'Sign in with Google';});
+  if($('#userEmail'))$('#userEmail').value=(who&&who.email)||'not@loggedin.yet';
+}
+async function signIn(){
+  if(account){
+    if(!confirm('Sign out of '+(account.email||'your account')+'?'))return;
+    try{const G=googleAuth();if(G)await G.signOut();}catch(e){}
+    account=null;try{localStorage.removeItem('dailylife_account');}catch(e){}
+    renderAuth();return;
+  }
+  if(!isNative()){window.location.href=API_BASE+'/api/auth/google';return;} // website
+  const G=googleAuth();
+  if(!G){alert('Google sign-in plugin is missing from this build.');return;}
+  try{
+    try{await G.initialize({clientId:GOOGLE_WEB_CLIENT_ID||undefined,scopes:['profile','email'],grantOfflineAccess:false});}catch(e){}
+    const u=await G.signIn();
+    account={name:u.name||u.givenName||'',email:u.email||'',imageUrl:u.imageUrl||''};
+    try{localStorage.setItem('dailylife_account',JSON.stringify(account));}catch(e){}
+    if(account.name&&(!state.user.displayName||state.user.displayName==='Friend')){state.user.displayName=account.name;if($('#displayName'))$('#displayName').value=account.name;}
+    save();renderAuth();closeOnMobile();
+  }catch(e){alert('Sign-in failed: '+(e&&(e.message||e.error)||JSON.stringify(e)));}
+}
+$$('.signin-btn').forEach(btn=>btn.onclick=signIn);
 
 /* ---------- sidebar + chatbox shrinking ---------- */
 setSidebar(!mobile());
@@ -128,4 +158,5 @@ const card=$('#composer');
 if(mobile())card.classList.add('compact');
 $('#cardToggle').onclick=()=>card.classList.toggle('compact');
 
+renderAuth();
 start();
