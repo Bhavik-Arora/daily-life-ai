@@ -10,7 +10,7 @@ let activeId=state.conversations[0].id;
 const active=()=>state.conversations.find(c=>c.id===activeId)||state.conversations[0];
 const TOKEN_KEY='dailylife_token';
 let authToken=null;try{authToken=localStorage.getItem(TOKEN_KEY);}catch(e){}
-const api=(path,options={})=>fetch(API_BASE+path,{headers:{'Content-Type':'application/json',...(authToken?{Authorization:'Bearer '+authToken}:{})},...options}).then(async r=>{const data=await r.json();if(!r.ok)throw Error(data.error);return data});
+const api=(path,options={})=>fetch(API_BASE+path,{headers:{'Content-Type':'application/json',...(authToken?{Authorization:'Bearer '+authToken}:{})},...options}).then(async r=>{const data=await r.json().catch(()=>({}));if(!r.ok){const e=Error(data.error||('Request failed ('+r.status+')'));e.status=r.status;throw e;}return data;});
 function escape(text){return String(text).replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));}
 
 /* ---------- saving (chats stay on the phone) ---------- */
@@ -108,7 +108,7 @@ $('#composer').onsubmit=async e=>{
   renderMessages();renderChatHistory();save();
   try{
     const r=await api('/api/chat',{method:'POST',body:JSON.stringify({message,tier:$('#tier').value,effort:+$('#effort').value})});
-    chat.messages.push(r.message);
+    if(!r||!r.message)throw Error('empty');chat.messages.push(r.message);
   }catch(err){
     chat.messages.push({role:'companion',text:'I held onto your thought, but I couldn\'t respond just now. Please try again.'});
   }
@@ -147,7 +147,7 @@ const authError=msg=>{$('#authError').textContent=msg||'';};
 function renderAuth(){
   const who=account||(state.user.email?{name:state.user.displayName,email:state.user.email}:null);
   document.body.classList.toggle('locked',!who&&!guest);
-  $$('.signin-btn').forEach(b=>{b.lastElementChild.textContent=who?(who.name||who.email):'Sign in';b.title=who?'Tap to sign out':'Log in or sign up';});
+  if($('#accountBtn'))$('#accountBtn').textContent=who?'Sign out':'Log in / Sign up';
   if($('#userEmail'))$('#userEmail').value=(who&&who.email)||'not@loggedin.yet';
   $('#guestBtn').hidden=!ALLOW_GUEST;
 }
@@ -160,12 +160,15 @@ async function googleSignIn(){
   authError('');
   if(!isNative()){window.location.href=API_BASE+'/api/auth/google';return;} // website
   const G=googleAuth();
-  if(!G){authError('Google sign-in is missing from this build.');return;}
+  if(!G){authError("Google sign-in isn't included in this build. Use email instead.");return;}
   try{
     try{await G.initialize({clientId:GOOGLE_WEB_CLIENT_ID||undefined,scopes:['profile','email'],grantOfflineAccess:false});}catch(e){}
     const u=await G.signIn();
     setAccount({name:u.name||u.givenName||'',email:u.email||'',imageUrl:u.imageUrl||''});
-  }catch(e){authError('Google sign-in failed: '+((e&&(e.message||e.error))||'cancelled'));}
+  }catch(e){
+    const m=String((e&&(e.message||e.error))||e||'');
+    authError(/12501|cancel/i.test(m)?'Sign-in was cancelled.':/\b10\b|developer/i.test(m)?"Google setup doesn't match this app yet (package name or SHA-1 in Google Cloud). Use email for now.":'Google sign-in failed'+(m?': '+m:'.')+' You can use email instead.');
+  }
 }
 async function signOut(){
   if(!confirm('Sign out?'))return;
@@ -186,6 +189,28 @@ function setAuthMode(m){
 $$('.auth-tab').forEach(b=>b.onclick=()=>setAuthMode(b.dataset.mode));
 $('#authGoogle').onclick=googleSignIn;
 $('#guestBtn').onclick=()=>{guest=true;renderAuth();};
+// Accounts stored on this phone (used when the server has no email login). Passwords are salted + hashed, never stored as text.
+const b64=buf=>btoa(String.fromCharCode(...new Uint8Array(buf))), unb64=t=>Uint8Array.from(atob(t),c=>c.charCodeAt(0));
+async function hashPw(password,saltB64){
+  if(!(window.crypto&&crypto.subtle))throw Error("Secure storage isn't available on this device.");
+  const salt=saltB64?unb64(saltB64):crypto.getRandomValues(new Uint8Array(16));
+  const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(password),'PBKDF2',false,['deriveBits']);
+  const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt,iterations:150000,hash:'SHA-256'},key,256);
+  return {salt:b64(salt),hash:b64(bits)};
+}
+const localUsers=()=>{try{return JSON.parse(localStorage.getItem('dailylife_users')||'{}');}catch(e){return {};}};
+async function localAuth(mode,name,email,password){
+  const users=localUsers(),k=email.toLowerCase();
+  if(mode==='signup'){
+    if(users[k])throw Error('That email already has an account on this phone. Log in instead.');
+    const h=await hashPw(password);users[k]={name:name||email.split('@')[0],...h};
+    localStorage.setItem('dailylife_users',JSON.stringify(users));
+    return {name:users[k].name,email};
+  }
+  const u=users[k];if(!u)throw Error('No account found for that email. Sign up first.');
+  const h=await hashPw(password,u.salt);if(h.hash!==u.hash)throw Error('Wrong password.');
+  return {name:u.name,email};
+}
 $('#authForm').onsubmit=async e=>{
   e.preventDefault();
   const email=$('#authEmail').value.trim(),password=$('#authPassword').value,name=$('#authName').value.trim();
@@ -193,16 +218,22 @@ $('#authForm').onsubmit=async e=>{
   if(authMode==='signup'&&password.length<8){authError('Use at least 8 characters for your password.');return;}
   const btn=$('#authSubmit');btn.disabled=true;authError('');
   try{
-    const r=await api('/api/auth/'+(authMode==='signup'?'signup':'login'),{method:'POST',body:JSON.stringify({name,displayName:name,email,password})});
-    const u=r.user||r;
-    if(r.token){authToken=r.token;try{localStorage.setItem(TOKEN_KEY,r.token);}catch(x){}}
-    setAccount({name:u.displayName||u.name||name||email.split('@')[0],email:u.email||email});
-  }catch(ex){
-    authError(/JSON|Unexpected|fetch|Network/i.test(ex.message)?"Email accounts aren't set up on the server yet. Use Google for now.":(ex.message||'Something went wrong.'));
-  }
+    let acc;
+    try{
+      const r=await api('/api/auth/'+(authMode==='signup'?'signup':'login'),{method:'POST',body:JSON.stringify({name,displayName:name,email,password})});
+      const u=r.user||r;
+      if(r.token){authToken=r.token;try{localStorage.setItem(TOKEN_KEY,r.token);}catch(x){}}
+      if(!(u.email||r.token))throw Object.assign(Error('no endpoint'),{status:404});
+      acc={name:u.displayName||u.name||name||email.split('@')[0],email:u.email||email};
+    }catch(ex){
+      if(ex.status&&ex.status!==404&&ex.status!==405&&ex.status<500)throw ex; // real server answer (wrong password, etc.)
+      acc=await localAuth(authMode,name,email,password); // server has no email login: account on this phone
+    }
+    setAccount(acc);
+  }catch(ex){authError(ex.message||'Something went wrong.');}
   btn.disabled=false;
 };
-$$('.signin-btn').forEach(btn=>btn.onclick=()=>{if(account||state.user.email)signOut();else{guest=false;renderAuth();}});
+$('#accountBtn').onclick=()=>{if(account||state.user.email)signOut();else{guest=false;renderAuth();}};
 // logo copy for the gate (own gradient id so it renders even when the hero is hidden)
 (()=>{const l=document.querySelector('.hero .logo');if(l)$('#authLogo').innerHTML=l.outerHTML.replace(/id="lg"/g,'id="lg2"').replace(/#lg\)/g,'#lg2)');})();
 
