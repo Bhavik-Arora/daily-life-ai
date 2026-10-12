@@ -5,7 +5,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID }
 import { join, extname } from 'node:path';
 
 loadEnv();
-const ROOT = process.cwd(), PUBLIC = join(ROOT, 'public'), DATA = join(ROOT, 'data', 'daily-life.enc');
+const ROOT = process.cwd(), PUBLIC = join(ROOT, 'www'), DATA = join(ROOT, 'data', 'daily-life.enc');
 const PORT = Number(process.env.PORT || 3000);
 if (!process.env.DATA_ENCRYPTION_KEY) throw new Error('DATA_ENCRYPTION_KEY is required. Copy .env.example to .env and set a 32-byte base64 secret.');
 const KEY = createHash('sha256').update(process.env.DATA_ENCRYPTION_KEY).digest();
@@ -42,6 +42,10 @@ async function llmReply(message,tier,effort) {
 
 const server=http.createServer(async(req,res)=>{ try {
   const url=new URL(req.url,`http://${req.headers.host}`);
+  // Let the phone app (which runs from https://localhost) talk to this server
+  const origin=req.headers.origin;
+  if (origin && ['https://localhost','http://localhost','capacitor://localhost'].includes(origin)) { res.setHeader('Access-Control-Allow-Origin',origin); res.setHeader('Vary','Origin'); res.setHeader('Access-Control-Allow-Methods','GET,POST,PATCH,OPTIONS'); res.setHeader('Access-Control-Allow-Headers','Content-Type,Authorization'); }
+  if (req.method==='OPTIONS') { res.writeHead(204); return res.end(); }
   if (url.pathname==='/api/health') return json(res,200,{ok:true});
   if (url.pathname==='/api/bootstrap' && req.method==='GET') { const db=bootstrap(await load()); bumpStreak(db.user); await save(db); return json(res,200,{...db, quote:'Small steps, held gently, become a life you recognize.'}); }
   if (url.pathname==='/api/tasks' && req.method==='POST') { const db=bootstrap(await load()), input=await body(req); const task={id:randomUUID(),title:String(input.title||'').slice(0,200),dueAt:input.dueAt||null,routine:!!input.routine,completed:false,createdAt:new Date().toISOString()}; if(!task.title) return json(res,400,{error:'A task needs a name.'}); db.tasks.push(task); await save(db); return json(res,201,task); }
