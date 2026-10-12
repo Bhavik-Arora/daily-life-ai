@@ -8,7 +8,9 @@ const normalize=list=>(Array.isArray(list)?list:[]).map(c=>({...c,id:String(c.id
 let state={user:{displayName:'Friend',streak:1},conversations:[blankChat()],tasks:[]};
 let activeId=state.conversations[0].id;
 const active=()=>state.conversations.find(c=>c.id===activeId)||state.conversations[0];
-const api=(path,options={})=>fetch(API_BASE+path,{headers:{'Content-Type':'application/json'},...options}).then(async r=>{const data=await r.json();if(!r.ok)throw Error(data.error);return data});
+const TOKEN_KEY='dailylife_token';
+let authToken=null;try{authToken=localStorage.getItem(TOKEN_KEY);}catch(e){}
+const api=(path,options={})=>fetch(API_BASE+path,{headers:{'Content-Type':'application/json',...(authToken?{Authorization:'Bearer '+authToken}:{})},...options}).then(async r=>{const data=await r.json();if(!r.ok)throw Error(data.error);return data});
 function escape(text){return String(text).replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));}
 
 /* ---------- saving (chats stay on the phone) ---------- */
@@ -53,7 +55,22 @@ function newChat(){
 }
 
 /* ---------- tasks / last 7 days ---------- */
-function renderTasks(){const target=$('#tasks');target.innerHTML=state.tasks.length?state.tasks.map(t=>'<label class="task '+(t.completed?'done':'')+'"><input type="checkbox" '+(t.completed?'checked':'')+' data-id="'+t.id+'"><span>'+escape(t.title)+'</span><small>'+(t.dueAt?new Date(t.dueAt).toLocaleString([], {weekday:'short',hour:'numeric',minute:'2-digit'}):t.routine?'Routine':'Anytime')+'</small></label>').join(''):'<p class="empty">Nothing is asking for you yet. That can be lovely.</p>';target.querySelectorAll('input').forEach(x=>x.onchange=async()=>{const task=await api('/api/tasks/'+x.dataset.id,{method:'PATCH',body:JSON.stringify({completed:x.checked})});Object.assign(state.tasks.find(t=>t.id===task.id),task);renderTasks();renderLast7Days();save();});}
+/* ---------- calendar ---------- */
+let shown=new Date(), selected=new Date();
+const sameDay=(a,b)=>a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();
+const tasksFor=day=>{const isToday=sameDay(day,new Date());return state.tasks.filter(t=>t.dueAt?sameDay(new Date(t.dueAt),day):(t.routine||isToday));};
+function renderCalendar(){
+  const y=shown.getFullYear(),m=shown.getMonth(),first=new Date(y,m,1).getDay(),days=new Date(y,m+1,0).getDate(),today=new Date();
+  $('#calTitle').textContent=shown.toLocaleDateString([],{month:'long',year:'numeric'});
+  let html='';for(let i=0;i<first;i++)html+='<span></span>';
+  for(let d=1;d<=days;d++){const day=new Date(y,m,d),has=state.tasks.some(t=>t.dueAt&&sameDay(new Date(t.dueAt),day));
+    html+='<button type="button" class="cal-day'+(sameDay(day,today)?' today':'')+(sameDay(day,selected)?' selected':'')+'" data-d="'+d+'">'+d+(has?'<i class="dot"></i>':'')+'</button>';}
+  $('#calGrid').innerHTML=html;
+  $$('#calGrid .cal-day').forEach(b=>b.onclick=()=>{selected=new Date(y,m,+b.dataset.d);renderTasks();});
+}
+$('#calPrev').onclick=()=>{shown=new Date(shown.getFullYear(),shown.getMonth()-1,1);renderCalendar();};
+$('#calNext').onclick=()=>{shown=new Date(shown.getFullYear(),shown.getMonth()+1,1);renderCalendar();};
+function renderTasks(){const target=$('#tasks'),list=tasksFor(selected);$('#dayTitle').textContent=sameDay(selected,new Date())?'Today':selected.toLocaleDateString([],{weekday:'long',month:'short',day:'numeric'});target.innerHTML=list.length?list.map(t=>'<label class="task '+(t.completed?'done':'')+'"><input type="checkbox" '+(t.completed?'checked':'')+' data-id="'+t.id+'"><span>'+escape(t.title)+'</span><small>'+(t.dueAt?new Date(t.dueAt).toLocaleString([], {weekday:'short',hour:'numeric',minute:'2-digit'}):t.routine?'Routine':'Anytime')+'</small></label>').join(''):'<p class="empty">Nothing is asking for you yet. That can be lovely.</p>';target.querySelectorAll('input').forEach(x=>x.onchange=async()=>{const task=await api('/api/tasks/'+x.dataset.id,{method:'PATCH',body:JSON.stringify({completed:x.checked})});Object.assign(state.tasks.find(t=>t.id===task.id),task);renderTasks();renderLast7Days();save();});renderCalendar();}
 function renderLast7Days(){const target=$('#last7Days');let html='';const maxChats=7;for(let i=6;i>=0;i--){let d=new Date();d.setDate(d.getDate()-i);let chats=state.conversations.filter(c=>{if(!c.createdAt||!c.messages.length)return false;let cd=new Date(c.createdAt);return cd.getFullYear()===d.getFullYear()&&cd.getMonth()===d.getMonth()&&cd.getDate()===d.getDate();}).length;html+='<div class="day-summary" title="'+d.toLocaleDateString()+' - '+chats+' chats"><span class="day-label">'+d.toLocaleDateString([],{weekday:'short'}).substring(0,1)+'</span><span class="day-bar" style="height:'+Math.round((chats/maxChats)*100)+'%"></span></div>';}target.innerHTML=html;}
 function setEffort(){let x=+$('#effort').value;let label=x<30?'Light':x<70?'Balanced':'Deep';$('#effortOut').textContent=label;$('#effortBtnOut').textContent=label;}
 
@@ -65,17 +82,19 @@ const closeOnMobile=()=>{if(mobile())setSidebar(false);};
 
 async function start(){
   const had=load();
-  renderAll();
+  renderAuth();renderAll();
+  await sync(!had);
+}
+async function sync(allowRemoteChats){
   try{
     const s=await api('/api/bootstrap');
     state.user=s.user||state.user;
     state.tasks=s.tasks||state.tasks;
     const remote=normalize(s.conversations).filter(c=>c.messages.length);
-    if(!had&&remote.length){state.conversations=remote;activeId=remote[remote.length-1].id;}
+    if(allowRemoteChats&&remote.length){state.conversations=remote;activeId=remote[remote.length-1].id;}
     prune();
     if($('#displayName'))$('#displayName').value=state.user.displayName||'Friend';
-    renderAuth();
-    renderAll();save();
+    renderAuth();renderAll();save();
   }catch(e){console.warn(e);}
 }
 
@@ -102,7 +121,7 @@ $('#effortBtn').onclick=()=>$('#effortDialog').showModal();
 function speak(text){if(text&&'speechSynthesis'in window){speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance(text));}}
 $('#voice').onclick=()=>{let R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R){$('#listening').textContent='Voice input is not available in this browser.';return;}let recognition=new R();recognition.lang=navigator.language;recognition.interimResults=true;$('#listening').textContent='Listening…';recognition.onresult=e=>{$('#prompt').value=[...e.results].map(r=>r[0].transcript).join(' ');};recognition.onend=()=>$('#listening').textContent='';recognition.start();};
 
-$('#newTask').onclick=()=>$('#taskDialog').showModal();
+$('#newTask').onclick=()=>{const d=new Date(selected),now=new Date(),p=n=>String(n).padStart(2,'0');d.setHours(sameDay(selected,now)?Math.min(now.getHours()+1,23):9,0,0,0);$('#taskDate').value=d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':00';$('#taskDialog').showModal();};
 $('#taskForm').onsubmit=async e=>{e.preventDefault();let task=await api('/api/tasks',{method:'POST',body:JSON.stringify({title:$('#taskTitle').value,dueAt:$('#taskDate').value||null,routine:$('#routine').checked})});state.tasks.push(task);e.target.reset();$('#taskDialog').close();renderTasks();renderLast7Days();save();};
 
 $$('[data-view]').forEach(b=>b.onclick=()=>{showView(b.dataset.view);closeOnMobile();});
@@ -116,37 +135,76 @@ $('#importData').onclick=()=>{let input=document.createElement('input');input.ty
 $('#deleteData').onclick=()=>{if(confirm('Are you sure? This will permanently delete all your data.')){state={user:{displayName:'Friend',streak:1},conversations:[blankChat()],tasks:[]};activeId=state.conversations[0].id;try{localStorage.removeItem(KEY);}catch(e){}renderAll();alert('All data deleted.');}};
 $('#updateProfile').onclick=async()=>{try{const updated=await api('/api/user',{method:'PATCH',body:JSON.stringify({displayName:$('#displayName').value||'Friend'})});state.user=updated;save();alert('Profile updated!');}catch(e){alert('Failed to update profile: '+e.message);}};
 $$('.close').forEach(btn=>btn.onclick=e=>{const d=e.target.closest('dialog');if(d)d.close();});
-/* ---------- Google sign-in ---------- */
-// Web client ID from Google Cloud (Credentials > OAuth client ID > Web application). Use the same value as serverClientId in capacitor.config.
+/* ---------- log in / sign up gate ---------- */
+const ALLOW_GUEST=true; // set false to remove the "Continue as guest" link
+// Web client ID from Google Cloud (Credentials > OAuth client ID > Web application). Same value as serverClientId in capacitor.config.
 const GOOGLE_WEB_CLIENT_ID='545590780255-ie9s93forogb6fpt34u7v0rocb51fudt.apps.googleusercontent.com';
-let account=null;try{account=JSON.parse(localStorage.getItem('dailylife_account')||'null');}catch(e){}
+let account=null, guest=false, authMode='login';
+try{account=JSON.parse(localStorage.getItem('dailylife_account')||'null');}catch(e){}
 const isNative=()=>!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 const googleAuth=()=>window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.GoogleAuth;
+const authError=msg=>{$('#authError').textContent=msg||'';};
 function renderAuth(){
   const who=account||(state.user.email?{name:state.user.displayName,email:state.user.email}:null);
-  $$('.signin-btn').forEach(b=>{b.lastElementChild.textContent=who?(who.name||who.email):'Sign in';b.title=account?'Tap to sign out':'Sign in with Google';});
+  document.body.classList.toggle('locked',!who&&!guest);
+  $$('.signin-btn').forEach(b=>{b.lastElementChild.textContent=who?(who.name||who.email):'Sign in';b.title=who?'Tap to sign out':'Log in or sign up';});
   if($('#userEmail'))$('#userEmail').value=(who&&who.email)||'not@loggedin.yet';
+  $('#guestBtn').hidden=!ALLOW_GUEST;
 }
-async function signIn(){
-  if(account){
-    if(!confirm('Sign out of '+(account.email||'your account')+'?'))return;
-    try{const G=googleAuth();if(G)await G.signOut();}catch(e){}
-    account=null;try{localStorage.removeItem('dailylife_account');}catch(e){}
-    renderAuth();return;
-  }
+function setAccount(a){
+  account=a;try{localStorage.setItem('dailylife_account',JSON.stringify(a));}catch(e){}
+  if(a.name&&(!state.user.displayName||state.user.displayName==='Friend')){state.user.displayName=a.name;if($('#displayName'))$('#displayName').value=a.name;}
+  guest=false;authError('');$('#authForm').reset();save();renderAuth();showView('chat');closeOnMobile();sync(false);
+}
+async function googleSignIn(){
+  authError('');
   if(!isNative()){window.location.href=API_BASE+'/api/auth/google';return;} // website
   const G=googleAuth();
-  if(!G){alert('Google sign-in plugin is missing from this build.');return;}
+  if(!G){authError('Google sign-in is missing from this build.');return;}
   try{
     try{await G.initialize({clientId:GOOGLE_WEB_CLIENT_ID||undefined,scopes:['profile','email'],grantOfflineAccess:false});}catch(e){}
     const u=await G.signIn();
-    account={name:u.name||u.givenName||'',email:u.email||'',imageUrl:u.imageUrl||''};
-    try{localStorage.setItem('dailylife_account',JSON.stringify(account));}catch(e){}
-    if(account.name&&(!state.user.displayName||state.user.displayName==='Friend')){state.user.displayName=account.name;if($('#displayName'))$('#displayName').value=account.name;}
-    save();renderAuth();closeOnMobile();
-  }catch(e){alert('Sign-in failed: '+(e&&(e.message||e.error)||JSON.stringify(e)));}
+    setAccount({name:u.name||u.givenName||'',email:u.email||'',imageUrl:u.imageUrl||''});
+  }catch(e){authError('Google sign-in failed: '+((e&&(e.message||e.error))||'cancelled'));}
 }
-$$('.signin-btn').forEach(btn=>btn.onclick=signIn);
+async function signOut(){
+  if(!confirm('Sign out?'))return;
+  try{const G=googleAuth();if(G)await G.signOut();}catch(e){}
+  try{await api('/api/auth/logout',{method:'POST'});}catch(e){}
+  account=null;authToken=null;guest=false;state.user.email='';
+  try{localStorage.removeItem('dailylife_account');localStorage.removeItem(TOKEN_KEY);}catch(e){}
+  save();renderAuth();showView('chat');
+}
+function setAuthMode(m){
+  authMode=m;authError('');
+  $$('.auth-tab').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
+  $('#authName').hidden=m!=='signup';
+  $('#authPassword').autocomplete=m==='signup'?'new-password':'current-password';
+  $('#authSubmit').textContent=m==='signup'?'Create account':'Log in';
+  $('#authSub').textContent=m==='signup'?'Create your account to get started.':'Log in to pick up where you left off.';
+}
+$$('.auth-tab').forEach(b=>b.onclick=()=>setAuthMode(b.dataset.mode));
+$('#authGoogle').onclick=googleSignIn;
+$('#guestBtn').onclick=()=>{guest=true;renderAuth();};
+$('#authForm').onsubmit=async e=>{
+  e.preventDefault();
+  const email=$('#authEmail').value.trim(),password=$('#authPassword').value,name=$('#authName').value.trim();
+  if(!/^\S+@\S+\.\S+$/.test(email)){authError('Enter a valid email address.');return;}
+  if(authMode==='signup'&&password.length<8){authError('Use at least 8 characters for your password.');return;}
+  const btn=$('#authSubmit');btn.disabled=true;authError('');
+  try{
+    const r=await api('/api/auth/'+(authMode==='signup'?'signup':'login'),{method:'POST',body:JSON.stringify({name,displayName:name,email,password})});
+    const u=r.user||r;
+    if(r.token){authToken=r.token;try{localStorage.setItem(TOKEN_KEY,r.token);}catch(x){}}
+    setAccount({name:u.displayName||u.name||name||email.split('@')[0],email:u.email||email});
+  }catch(ex){
+    authError(/JSON|Unexpected|fetch|Network/i.test(ex.message)?"Email accounts aren't set up on the server yet. Use Google for now.":(ex.message||'Something went wrong.'));
+  }
+  btn.disabled=false;
+};
+$$('.signin-btn').forEach(btn=>btn.onclick=()=>{if(account||state.user.email)signOut();else{guest=false;renderAuth();}});
+// logo copy for the gate (own gradient id so it renders even when the hero is hidden)
+(()=>{const l=document.querySelector('.hero .logo');if(l)$('#authLogo').innerHTML=l.outerHTML.replace(/id="lg"/g,'id="lg2"').replace(/#lg\)/g,'#lg2)');})();
 
 /* ---------- sidebar + chatbox shrinking ---------- */
 setSidebar(!mobile());
@@ -158,7 +216,6 @@ const card=$('#composer');
 if(mobile())card.classList.add('compact');
 $('#cardToggle').onclick=()=>card.classList.toggle('compact');
 
-renderAuth();
 start();
 
 /* ---------- background that follows your finger / cursor ---------- */

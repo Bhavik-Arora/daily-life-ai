@@ -192,3 +192,68 @@ h1{font-family:'Outfit','Inter',system-ui,sans-serif;font-weight:600;letter-spac
 #chat:not(.has-messages) .chat-card.compact .card-header{display:flex}
 @media(max-width:760px){.logo{width:48px;height:48px}.tagline{font-size:15px;margin-bottom:22px}}
 @media(prefers-reduced-motion:reduce){.logo{transform:none}}
+
+/* ================= Log in / sign up gate ================= */
+.auth{position:fixed;inset:0;z-index:500;display:none;overflow-y:auto;padding:20px}
+body.locked .auth{display:flex}
+body.locked .shell,body.locked .sidebar-open,body.locked .backdrop{visibility:hidden}
+.auth-card{margin:auto;width:min(400px,100%);padding:30px 26px 22px;background:rgba(10,10,13,.62);border:1px solid rgba(255,255,255,.12);border-radius:28px;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 30px 90px rgba(0,0,0,.65),0 0 80px rgba(75,159,232,.1);display:flex;flex-direction:column;gap:14px;text-align:center}
+.auth-logo .logo{width:52px;height:52px;margin:0 auto 4px}
+.auth-title{margin:0;font:600 28px 'Outfit','Inter',sans-serif;letter-spacing:-.03em}
+.auth-sub{margin:-6px 0 4px;color:#9a9ca8;font:400 15px 'Outfit','Inter',sans-serif}
+.auth-tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border:1px solid rgba(255,255,255,.12);border-radius:999px;background:rgba(255,255,255,.03)}
+.auth-tab{border:0;border-radius:999px;background:none;color:#9a9ca8;padding:9px 0;font:500 14px 'Outfit','Inter',sans-serif;cursor:pointer;transition:.2s}
+.auth-tab.active{background:rgba(255,255,255,.1);color:#fff}
+.auth-google{display:flex;align-items:center;justify-content:center;gap:10px;border:0;border-radius:999px;background:#fff;color:#111;padding:13px 16px;font:600 15px 'Outfit','Inter',sans-serif;cursor:pointer;transition:.2s}
+.auth-google:hover{filter:brightness(.93)}
+.auth-google svg{width:20px;height:20px}
+.auth-or{display:flex;align-items:center;gap:12px;color:#6c7088;font-size:12px}
+.auth-or:before,.auth-or:after{content:'';flex:1;height:1px;background:rgba(255,255,255,.12)}
+#authForm{display:flex;flex-direction:column;gap:10px}
+#authForm input{width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:14px;color:#fff;padding:13px 14px;font:16px 'Inter',sans-serif;outline:0;transition:.2s}
+#authForm input:focus{border-color:rgba(75,159,232,.7);background:rgba(255,255,255,.07)}
+#authForm input::placeholder{color:#6c7088}
+.auth-error{margin:0;min-height:0;color:#ff8a8a;font-size:13px;text-align:left}
+.auth-error:empty{display:none}
+.auth-submit{border:0;border-radius:999px;background:linear-gradient(135deg,#72bde5,#4b9fe8);color:#04121f;padding:13px 16px;font:600 15px 'Outfit','Inter',sans-serif;cursor:pointer;box-shadow:0 0 28px rgba(75,159,232,.35);transition:.2s}
+.auth-submit:hover{filter:brightness(1.08)}
+.auth-submit:disabled{opacity:.6;cursor:wait}
+.auth-guest{border:0;background:none;color:#8d90a0;font:500 13px 'Outfit','Inter',sans-serif;cursor:pointer;padding:6px}
+.auth-guest:hover{color:#fff}
+.auth-guest[hidden],#authName[hidden]{display:none}
+
+/* ================= Bottom task bar ================= */
+.bottom-nav{display:flex;position:fixed;left:260px;right:0;bottom:calc(12px + env(safe-area-inset-bottom,0px));margin:0 auto;width:fit-content;gap:4px;padding:6px;background:rgba(10,10,13,.8);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.12);border-radius:999px;box-shadow:0 12px 40px rgba(0,0,0,.55);z-index:120;transition:left .25s ease}
+body.sidebar-closed .bottom-nav{left:0}
+.nav-btn{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:92px;padding:8px 16px;border:0;border-radius:999px;background:none;color:#8d90a0;font:500 11px 'Outfit','Inter',sans-serif;cursor:pointer;transition:.2s}
+.nav-btn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.nav-btn small{font-size:11px}
+.nav-btn:hover{color:#fff}
+.nav-btn.active{background:rgba(75,159,232,.18);color:#fff;box-shadow:inset 0 0 0 1px rgba(75,159,232,.35)}
+.chat-card{bottom:calc(86px + env(safe-area-inset-bottom,0px))}
+.chat-container{padding-bottom:270px}
+.app{padding-bottom:110px}
+
+/* ================= Calendar ================= */
+.plan-container{max-width:560px}
+.cal-card{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:18px;box-shadow:0 15px 40px rgba(0,0,0,.15)}
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.cal-head h3{margin:0;font:600 18px 'Outfit','Inter',sans-serif}
+.cal-head button{width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:#fff;font-size:18px;line-height:1;cursor:pointer;transition:.2s}
+.cal-head button:hover{border-color:#4b9fe8}
+.cal-week,.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.cal-week span{font-size:11px;color:#777e9f;padding:6px 0;font-weight:600}
+.cal-day{position:relative;aspect-ratio:1;max-height:56px;display:flex;align-items:center;justify-content:center;border:0;border-radius:12px;background:none;color:#e5e7eb;font:500 14px 'Outfit','Inter',sans-serif;cursor:pointer;transition:.15s}
+.cal-day:hover{background:rgba(255,255,255,.08)}
+.cal-day.today{box-shadow:inset 0 0 0 1px rgba(75,159,232,.7)}
+.cal-day.selected{background:linear-gradient(135deg,#72bde5,#4b9fe8);color:#04121f;font-weight:600}
+.cal-day .dot{position:absolute;bottom:6px;width:4px;height:4px;border-radius:50%;background:#ff9a45}
+.cal-day.selected .dot{background:#04121f}
+
+@media(max-width:760px){
+.bottom-nav{left:0!important;width:calc(100vw - 24px);bottom:calc(10px + env(safe-area-inset-bottom,0px))}
+.nav-btn{flex:1;min-width:0;padding:8px 6px}
+.chat-card{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+.chat-container{padding-bottom:236px}
+.auth-card{padding:26px 20px 18px}
+}
