@@ -72,7 +72,6 @@ $('#calPrev').onclick=()=>{shown=new Date(shown.getFullYear(),shown.getMonth()-1
 $('#calNext').onclick=()=>{shown=new Date(shown.getFullYear(),shown.getMonth()+1,1);renderCalendar();};
 function renderTasks(){const target=$('#tasks'),list=tasksFor(selected);$('#dayTitle').textContent=sameDay(selected,new Date())?'Today':selected.toLocaleDateString([],{weekday:'long',month:'short',day:'numeric'});target.innerHTML=list.length?list.map(t=>'<label class="task '+(t.completed?'done':'')+'"><input type="checkbox" '+(t.completed?'checked':'')+' data-id="'+t.id+'"><span>'+escape(t.title)+'</span><small>'+(t.dueAt?new Date(t.dueAt).toLocaleString([], {weekday:'short',hour:'numeric',minute:'2-digit'}):t.routine?'Routine':'Anytime')+'</small></label>').join(''):'<p class="empty">Nothing is asking for you yet. That can be lovely.</p>';target.querySelectorAll('input').forEach(x=>x.onchange=async()=>{const task=await api('/api/tasks/'+x.dataset.id,{method:'PATCH',body:JSON.stringify({completed:x.checked})});Object.assign(state.tasks.find(t=>t.id===task.id),task);renderTasks();renderLast7Days();save();});renderCalendar();}
 function renderLast7Days(){const target=$('#last7Days');let html='';const maxChats=7;for(let i=6;i>=0;i--){let d=new Date();d.setDate(d.getDate()-i);let chats=state.conversations.filter(c=>{if(!c.createdAt||!c.messages.length)return false;let cd=new Date(c.createdAt);return cd.getFullYear()===d.getFullYear()&&cd.getMonth()===d.getMonth()&&cd.getDate()===d.getDate();}).length;html+='<div class="day-summary" title="'+d.toLocaleDateString()+' - '+chats+' chats"><span class="day-label">'+d.toLocaleDateString([],{weekday:'short'}).substring(0,1)+'</span><span class="day-bar" style="height:'+Math.round((chats/maxChats)*100)+'%"></span></div>';}target.innerHTML=html;}
-function setEffort(){let x=+$('#effort').value;let label=x<30?'Light':x<70?'Balanced':'Deep';$('#effortOut').textContent=label;$('#effortBtnOut').textContent=label;}
 
 /* ---------- views + sidebar ---------- */
 let currentView='chat';
@@ -120,8 +119,6 @@ $('#composer').onsubmit=async e=>{
   renderMessages();renderChatHistory();renderLast7Days();save();
 };
 $('#prompt').oninput=e=>{e.target.style.height='auto';e.target.style.height=Math.min(e.target.scrollHeight,120)+'px';};
-$('#effort').oninput=setEffort;setEffort();
-$('#effortBtn').onclick=()=>$('#effortDialog').showModal();
 
 function speak(text){if(text&&'speechSynthesis'in window){speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance(text));}}
 $('#voice').onclick=()=>{let R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R){$('#listening').textContent='Voice input is not available in this browser.';return;}let recognition=new R();recognition.lang=navigator.language;recognition.interimResults=true;$('#listening').textContent='Listening…';recognition.onresult=e=>{$('#prompt').value=[...e.results].map(r=>r[0].transcript).join(' ');};recognition.onend=()=>$('#listening').textContent='';recognition.start();};
@@ -261,13 +258,10 @@ $('#sidebarToggle').onclick=()=>setSidebar(document.body.classList.contains('sid
 $('#sidebarOpen').onclick=()=>setSidebar(true);
 $('#backdrop').onclick=()=>setSidebar(false);
 mq.addEventListener('change',()=>setSidebar(!mobile()));
-const card=$('#composer');
-if(mobile())card.classList.add('compact');
-$('#cardToggle').onclick=()=>card.classList.toggle('compact');
 
 /* ---------- settings popup + preferences ---------- */
 const PREFS_KEY='dailylife_prefs';
-let prefs={font:'sans',size:'m',glow:true,analytics:true,insights:true};
+let prefs={font:'sans',size:'m',glow:true,analytics:true,insights:true,tier:'breathe',effort:45};
 try{Object.assign(prefs,JSON.parse(localStorage.getItem(PREFS_KEY)||'{}'));}catch(e){}
 function applyPrefs(){
   document.body.dataset.font=prefs.font;
@@ -276,9 +270,54 @@ function applyPrefs(){
   $$('.font-choice').forEach(b=>b.classList.toggle('selected',b.dataset.font===prefs.font));
   $$('.size-choice').forEach(b=>b.classList.toggle('selected',b.dataset.size===prefs.size));
   $('#glowToggle').checked=prefs.glow;$('#dataCollection').checked=prefs.analytics;$('#shareInsights').checked=prefs.insights;
+  $('#tier').value=prefs.tier;$('#effort').value=prefs.effort;renderPill();
   dispatchEvent(new Event('dl-glow'));
 }
 function setPref(k,v){prefs[k]=v;try{localStorage.setItem(PREFS_KEY,JSON.stringify(prefs));}catch(e){}applyPrefs();}
+/* ---------- model / effort / + popups (anchored above the bar) ---------- */
+const MODELS=[['breathe','Breathe','#a78bfa'],['tide','Tide','#38bdf8'],['echo','Echo','#34d399'],['orbit','Orbit','#fb923c'],['seed','Seed','#f472b6']];
+const EFFORTS=[['Light',15,''],['Balanced',45,'Recommended'],['Deep',75,''],['Max',100,'Longest replies']];
+const CHECK='<svg class="chk" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+const CHEV='<svg class="cv" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+const modelMenu=$('#modelMenu'),effortMenu=$('#effortMenu'),plusMenu=$('#plusMenu'),allMenus=[modelMenu,effortMenu,plusMenu];
+const modelInfo=()=>MODELS.find(m=>m[0]===prefs.tier)||MODELS[0];
+const effortInfo=()=>EFFORTS.find(e=>e[1]===prefs.effort)||EFFORTS[1];
+function renderPill(){
+  $('#modelLabel').textContent=modelInfo()[1];$('#modelDot').style.background=modelInfo()[2];$('#effortLabel').textContent=effortInfo()[0];
+  modelMenu.innerHTML=MODELS.map(m=>'<button type="button" class="mi" role="menuitemradio" aria-checked="'+(m[0]===prefs.tier)+'" data-model="'+m[0]+'"><i class="dot" style="background:'+m[2]+'"></i><span>'+m[1]+'</span>'+CHECK+'</button>').join('')+'<div class="msep"></div><button type="button" class="mi" id="effortRow" aria-haspopup="menu"><span>Effort</span><em>'+effortInfo()[0]+'</em>'+CHEV+'</button>';
+  effortMenu.innerHTML='<button type="button" class="mback" id="effortBack">‹ Back</button><p class="mhint">Higher effort gives longer, more thorough replies, but they take more time.</p>'+EFFORTS.map(e=>'<button type="button" class="mi" role="menuitemradio" aria-checked="'+(e[1]===prefs.effort)+'" data-effort="'+e[1]+'"><span>'+e[0]+'</span>'+(e[2]?'<small class="tag">'+e[2]+'</small>':'')+CHECK+'</button>').join('');
+  plusMenu.innerHTML='<button type="button" class="mi" data-act="chat"><span class="ic">✏</span><span>New chat</span></button><button type="button" class="mi" data-act="task"><span class="ic">🗓</span><span>Add a task</span></button><button type="button" class="mi" data-act="voice"><span class="ic">🎙</span><span>Voice input</span></button>';
+}
+function closeMenus(){allMenus.forEach(m=>{m.hidden=true;m.classList.remove('drill');});$('#modelBtn').setAttribute('aria-expanded','false');}
+function placeMenu(menu,anchor,align){
+  menu.hidden=false;const r=anchor.getBoundingClientRect();
+  menu.style.top='auto';menu.style.bottom=(innerHeight-r.top+10)+'px';
+  if(align==='right'){menu.style.right=Math.max(12,innerWidth-r.right)+'px';menu.style.left='auto';}
+  else{menu.style.left=Math.max(12,r.left)+'px';menu.style.right='auto';}
+}
+function showEffort(){
+  const mr=modelMenu.getBoundingClientRect();effortMenu.hidden=false;const w=effortMenu.offsetWidth;
+  effortMenu.style.top='auto';effortMenu.style.bottom=modelMenu.style.bottom;effortMenu.style.left='auto';
+  if(mr.left-8-w>=12){effortMenu.classList.remove('drill');effortMenu.style.right=(innerWidth-mr.left+8)+'px';} // beside the model list
+  else{effortMenu.classList.add('drill');effortMenu.style.right=modelMenu.style.right;modelMenu.hidden=true;} // small screens: replaces it
+}
+$('#modelBtn').onclick=()=>{const open=!modelMenu.hidden||!effortMenu.hidden;closeMenus();if(!open){placeMenu(modelMenu,$('#modelBtn'),'right');$('#modelBtn').setAttribute('aria-expanded','true');}};
+$('#plusBtn').onclick=()=>{const open=!plusMenu.hidden;closeMenus();if(!open)placeMenu(plusMenu,$('#plusBtn'),'left');};
+modelMenu.addEventListener('click',e=>{
+  const m=e.target.closest('[data-model]');if(m){setPref('tier',m.dataset.model);closeMenus();return;}
+  if(e.target.closest('#effortRow'))showEffort();
+});
+effortMenu.addEventListener('click',e=>{
+  const v=e.target.closest('[data-effort]');if(v){setPref('effort',+v.dataset.effort);closeMenus();return;}
+  if(e.target.closest('#effortBack')){effortMenu.hidden=true;effortMenu.classList.remove('drill');modelMenu.hidden=false;}
+});
+plusMenu.addEventListener('click',e=>{
+  const a=e.target.closest('[data-act]');if(!a)return;closeMenus();
+  if(a.dataset.act==='chat')newChat();else if(a.dataset.act==='task')$('#newTask').click();else $('#voice').click();
+});
+document.addEventListener('pointerdown',e=>{if(allMenus.every(m=>m.hidden))return;if(e.target.closest('.menu,#plusBtn,#modelBtn'))return;closeMenus();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMenus();});
+addEventListener('resize',closeMenus);
 const sdlg=$('#settingsDialog');
 function syncNav(){$$('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.view===(sdlg.open?'settings':currentView)));}
 function openSettings(){renderAuth();$$('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab==='profile'));$$('.tab-content').forEach(c=>c.classList.toggle('active',c.id==='tab-profile'));sdlg.showModal();syncNav();}
