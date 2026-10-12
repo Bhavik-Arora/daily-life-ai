@@ -96,6 +96,10 @@ async function sync(allowRemoteChats){
     prune();
     if($('#displayName'))$('#displayName').value=state.user.displayName||'Friend';
     renderAuth();renderAll();save();
+    if(/[?&]auth=google-ready/.test(location.search)){
+      history.replaceState(null,'',location.pathname);
+      if(state.user.email&&!account)setAccount({name:state.user.displayName,email:state.user.email});
+    }
   }catch(e){console.warn(e);}
 }
 
@@ -154,7 +158,7 @@ const isNative=()=>!!(window.Capacitor&&window.Capacitor.isNativePlatform&&windo
 const googleAuth=()=>window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.GoogleAuth;
 const authError=msg=>{$('#authError').textContent=msg||'';};
 function renderAuth(){
-  const who=account||(state.user.email?{name:state.user.displayName,email:state.user.email}:null);
+  const who=account; // only a login on THIS device counts (the server keeps one shared profile)
   document.body.classList.toggle('locked',!who&&!guest);
   if($('#accountBtn'))$('#accountBtn').textContent=who?'Sign out':'Log in / Sign up';
   if($('#userEmail'))$('#userEmail').value=(who&&who.email)||'';
@@ -247,7 +251,7 @@ $('#authForm').onsubmit=async e=>{
   }catch(ex){authError(ex.message||'Something went wrong.');}
   btn.disabled=false;
 };
-$('#accountBtn').onclick=()=>{if(account||state.user.email)signOut();else{$('#settingsDialog').close();guest=false;renderAuth();}};
+$('#accountBtn').onclick=()=>{if(account)signOut();else{$('#settingsDialog').close();guest=false;renderAuth();}};
 // logo copy for the gate (own gradient id so it renders even when the hero is hidden)
 (()=>{const l=document.querySelector('.hero .logo');if(l)$('#authLogo').innerHTML=l.outerHTML.replace(/id="lg"/g,'id="lg2"').replace(/#lg\)/g,'#lg2)');})();
 
