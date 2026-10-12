@@ -75,7 +75,8 @@ function renderLast7Days(){const target=$('#last7Days');let html='';const maxCha
 function setEffort(){let x=+$('#effort').value;let label=x<30?'Light':x<70?'Balanced':'Deep';$('#effortOut').textContent=label;$('#effortBtnOut').textContent=label;}
 
 /* ---------- views + sidebar ---------- */
-function showView(view){$$('[data-view]').forEach(x=>x.classList.toggle('active',x.dataset.view===view));$$('.view').forEach(x=>x.classList.toggle('active',x.id===view));}
+let currentView='chat';
+function showView(view){currentView=view;$$('[data-view]').forEach(x=>x.classList.toggle('active',x.dataset.view===view));$$('.view').forEach(x=>x.classList.toggle('active',x.id===view));}
 const mq=matchMedia('(max-width:760px)'), mobile=()=>mq.matches;
 const setSidebar=open=>document.body.classList.toggle('sidebar-closed',!open);
 const closeOnMobile=()=>{if(mobile())setSidebar(false);};
@@ -124,16 +125,24 @@ $('#voice').onclick=()=>{let R=window.SpeechRecognition||window.webkitSpeechReco
 $('#newTask').onclick=()=>{const d=new Date(selected),now=new Date(),p=n=>String(n).padStart(2,'0');d.setHours(sameDay(selected,now)?Math.min(now.getHours()+1,23):9,0,0,0);$('#taskDate').value=d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':00';$('#taskDialog').showModal();};
 $('#taskForm').onsubmit=async e=>{e.preventDefault();let task=await api('/api/tasks',{method:'POST',body:JSON.stringify({title:$('#taskTitle').value,dueAt:$('#taskDate').value||null,routine:$('#routine').checked})});state.tasks.push(task);e.target.reset();$('#taskDialog').close();renderTasks();renderLast7Days();save();};
 
-$$('[data-view]').forEach(b=>b.onclick=()=>{showView(b.dataset.view);closeOnMobile();});
-$('#backBtn').onclick=()=>showView('chat');
-$$('.font-choice').forEach(button=>button.onclick=()=>{$$('.font-choice').forEach(x=>x.classList.remove('selected'));button.classList.add('selected');document.body.dataset.font=button.dataset.font;});
-$$('.theme-choice').forEach(button=>button.onclick=()=>{$$('.theme-choice').forEach(x=>x.classList.remove('selected'));button.classList.add('selected');document.body.dataset.theme=button.dataset.theme;});
+$$('[data-view]').forEach(b=>b.onclick=()=>{if(b.dataset.view==='settings'){openSettings();return;}showView(b.dataset.view);closeOnMobile();});
+
+$$('.font-choice').forEach(b=>b.onclick=()=>setPref('font',b.dataset.font));
+$$('.size-choice').forEach(b=>b.onclick=()=>setPref('size',b.dataset.size));
+$('#glowToggle').onchange=e=>setPref('glow',e.target.checked);$('#dataCollection').onchange=e=>setPref('analytics',e.target.checked);$('#shareInsights').onchange=e=>setPref('insights',e.target.checked);
+
 $$('.tab-btn').forEach(btn=>btn.onclick=()=>{let tab=btn.dataset.tab;$$('.tab-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');$$('.tab-content').forEach(c=>c.classList.remove('active'));$('#tab-'+tab).classList.add('active');});
 
 $('#exportData').onclick=()=>{let data={conversations:state.conversations,tasks:state.tasks,user:state.user,timestamp:new Date().toISOString()};let blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});let url=URL.createObjectURL(blob);let a=document.createElement('a');a.href=url;a.download='daily-life-export-'+new Date().getTime()+'.json';a.click();URL.revokeObjectURL(url);};
 $('#importData').onclick=()=>{let input=document.createElement('input');input.type='file';input.accept='.json';input.onchange=e=>{let file=e.target.files[0];if(!file)return;let reader=new FileReader();reader.onload=evt=>{try{let imported=JSON.parse(evt.target.result);if(imported.conversations){state.conversations=normalize(imported.conversations);activeId=state.conversations.length?state.conversations[state.conversations.length-1].id:'';}state.tasks=imported.tasks||state.tasks;state.user=imported.user||state.user;prune();renderAll();save();alert('Data imported successfully!');}catch(err){alert('Failed to import data: '+err.message);}};reader.readAsText(file);};input.click();};
 $('#deleteData').onclick=()=>{if(confirm('Are you sure? This will permanently delete all your data.')){state={user:{displayName:'Friend',streak:1},conversations:[blankChat()],tasks:[]};activeId=state.conversations[0].id;try{localStorage.removeItem(KEY);}catch(e){}renderAll();alert('All data deleted.');}};
-$('#updateProfile').onclick=async()=>{try{const updated=await api('/api/user',{method:'PATCH',body:JSON.stringify({displayName:$('#displayName').value||'Friend'})});state.user=updated;save();alert('Profile updated!');}catch(e){alert('Failed to update profile: '+e.message);}};
+$('#updateProfile').onclick=async()=>{
+  const name=$('#displayName').value.trim()||'Friend',note=$('#saveNote');
+  state.user.displayName=name;save();renderAuth();
+  try{const u=await api('/api/user',{method:'PATCH',body:JSON.stringify({displayName:name})});if(u&&u.displayName)state.user={...state.user,...u};save();note.textContent='Saved ✓';}
+  catch(e){note.textContent='Saved on this phone ✓';}
+  setTimeout(()=>{note.textContent='';},2500);
+};
 $$('.close').forEach(btn=>btn.onclick=e=>{const d=e.target.closest('dialog');if(d)d.close();});
 /* ---------- log in / sign up gate ---------- */
 const ALLOW_GUEST=true; // set false to remove the "Continue as guest" link
@@ -148,7 +157,11 @@ function renderAuth(){
   const who=account||(state.user.email?{name:state.user.displayName,email:state.user.email}:null);
   document.body.classList.toggle('locked',!who&&!guest);
   if($('#accountBtn'))$('#accountBtn').textContent=who?'Sign out':'Log in / Sign up';
-  if($('#userEmail'))$('#userEmail').value=(who&&who.email)||'not@loggedin.yet';
+  if($('#userEmail'))$('#userEmail').value=(who&&who.email)||'';
+  const nm=(state.user.displayName&&state.user.displayName!=='Friend')?state.user.displayName:((who&&who.name)||state.user.displayName||'Friend');
+  if($('#avatar'))$('#avatar').textContent=(nm.trim()[0]||'F').toUpperCase();
+  if($('#profileName'))$('#profileName').textContent=nm;
+  if($('#profileEmail'))$('#profileEmail').textContent=(who&&who.email)||'Not signed in';
   $('#guestBtn').hidden=!ALLOW_GUEST;
 }
 function setAccount(a){
@@ -172,6 +185,7 @@ async function googleSignIn(){
 }
 async function signOut(){
   if(!confirm('Sign out?'))return;
+  $('#settingsDialog').close();
   try{const G=googleAuth();if(G)await G.signOut();}catch(e){}
   try{await api('/api/auth/logout',{method:'POST'});}catch(e){}
   account=null;authToken=null;guest=false;state.user.email='';
@@ -233,7 +247,7 @@ $('#authForm').onsubmit=async e=>{
   }catch(ex){authError(ex.message||'Something went wrong.');}
   btn.disabled=false;
 };
-$('#accountBtn').onclick=()=>{if(account||state.user.email)signOut();else{guest=false;renderAuth();}};
+$('#accountBtn').onclick=()=>{if(account||state.user.email)signOut();else{$('#settingsDialog').close();guest=false;renderAuth();}};
 // logo copy for the gate (own gradient id so it renders even when the hero is hidden)
 (()=>{const l=document.querySelector('.hero .logo');if(l)$('#authLogo').innerHTML=l.outerHTML.replace(/id="lg"/g,'id="lg2"').replace(/#lg\)/g,'#lg2)');})();
 
@@ -247,6 +261,26 @@ const card=$('#composer');
 if(mobile())card.classList.add('compact');
 $('#cardToggle').onclick=()=>card.classList.toggle('compact');
 
+/* ---------- settings popup + preferences ---------- */
+const PREFS_KEY='dailylife_prefs';
+let prefs={font:'sans',size:'m',glow:true,analytics:true,insights:true};
+try{Object.assign(prefs,JSON.parse(localStorage.getItem(PREFS_KEY)||'{}'));}catch(e){}
+function applyPrefs(){
+  document.body.dataset.font=prefs.font;
+  document.documentElement.style.setProperty('--msg-size',{s:'14px',m:'15px',l:'17px'}[prefs.size]||'15px');
+  document.body.classList.toggle('no-glow',!prefs.glow);
+  $$('.font-choice').forEach(b=>b.classList.toggle('selected',b.dataset.font===prefs.font));
+  $$('.size-choice').forEach(b=>b.classList.toggle('selected',b.dataset.size===prefs.size));
+  $('#glowToggle').checked=prefs.glow;$('#dataCollection').checked=prefs.analytics;$('#shareInsights').checked=prefs.insights;
+  dispatchEvent(new Event('dl-glow'));
+}
+function setPref(k,v){prefs[k]=v;try{localStorage.setItem(PREFS_KEY,JSON.stringify(prefs));}catch(e){}applyPrefs();}
+const sdlg=$('#settingsDialog');
+function syncNav(){$$('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.view===(sdlg.open?'settings':currentView)));}
+function openSettings(){renderAuth();$$('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab==='profile'));$$('.tab-content').forEach(c=>c.classList.toggle('active',c.id==='tab-profile'));sdlg.showModal();syncNav();}
+sdlg.addEventListener('click',e=>{if(e.target===sdlg)sdlg.close();});
+sdlg.addEventListener('close',syncNav);
+applyPrefs();
 start();
 
 /* ---------- background that follows your finger / cursor ---------- */
@@ -264,7 +298,9 @@ start();
   addEventListener('touchstart',touch,{passive:true});addEventListener('touchmove',touch,{passive:true});
   addEventListener('resize',()=>{size();if(still)frame(performance.now());});
   function glow(x,y,r,rgb,a){const g=ctx.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,'rgba('+rgb+','+a+')');g.addColorStop(1,'rgba('+rgb+',0)');ctx.fillStyle=g;ctx.fillRect(x-r,y-r,r*2,r*2);}
+  const stopped=()=>document.body.classList.contains('no-glow');
   function frame(now){
+    if(stopped()){ctx.clearRect(0,0,W,H);return;}
     const idle=now-P.last>3500;
     if(idle&&!still){const t=(now-t0)/1000;P.tx=W*(.5+.28*Math.sin(t*.35));P.ty=H*(.42+.2*Math.cos(t*.27));}
     P.x+=(P.tx-P.x)*.14;P.y+=(P.ty-P.y)*.14;
@@ -288,6 +324,7 @@ start();
     if(!still)document.documentElement.style.setProperty('--px',((P.x/W)-.5).toFixed(3));
     if(!still&&!document.hidden)raf=requestAnimationFrame(frame);
   }
+  addEventListener('dl-glow',()=>{cancelAnimationFrame(raf);if(!still)raf=requestAnimationFrame(frame);});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!still){cancelAnimationFrame(raf);raf=requestAnimationFrame(frame);}});
   size();raf=requestAnimationFrame(frame);
 })();
