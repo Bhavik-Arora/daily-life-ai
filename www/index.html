@@ -3,7 +3,7 @@
 <main class="shell">
   <aside class="sidebar" aria-label="Chat history">
   <div class="sb-top">
-    <div class="sb-brand"><span class="sb-mark"></span><span>Daily Life</span></div>
+    <div class="sb-brand"><svg class="sb-logo" viewBox="0 0 100 100" aria-hidden="true"><defs><linearGradient id="lgSide" gradientUnits="userSpaceOnUse" x1="8" y1="92" x2="92" y2="8"><stop offset="0" stop-color="#72bde5"/><stop offset="1" stop-color="#4b9fe8"/></linearGradient></defs><path d="M16.1 28.7 L6.0 38.8 L27.5 60.2 L6.0 81.7 L16.1 91.8 L37.5 70.3 L60.3 93.1 L70.4 83.0Z" fill="url(#lgSide)"/><path d="M83.9 71.3 L94.0 61.2 L72.5 39.8 L94.0 18.3 L83.9 8.2 L62.5 29.7 L39.7 6.9 L29.6 17.0Z" fill="url(#lgSide)"/></svg><span>Daily Life</span></div>
     <button type="button" class="sb-toggle" id="sidebarToggle" aria-label="Close sidebar"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="3"/><path d="M9.5 4.5v15"/></svg></button>
   </div>
   <button type="button" class="sb-new" id="newChatBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>New chat</span></button>
@@ -34,7 +34,8 @@
 <div class="sd-row"><div><b>Background glow</b><small>The light that follows your finger</small></div><label class="switch"><input type="checkbox" id="glowToggle" checked/><i></i></label></div>
 </div>
 <div class="tab-content" id="tab-billing"><h3>Billing</h3><p class="sd-hint">Manage your plan.</p>
-<div class="plan-card"><div><small>Current plan</small><b id="currentPlan">Free</b></div><button type="button" class="primary">Upgrade</button></div>
+<div class="plan-card"><div><small>Current plan</small><b id="currentPlan">Free</b></div></div>
+<div class="sd-row"><div><b>Change plan</b><small>Free: Breathe, Tide, Echo. Pro adds Orbit. Max adds Seed. Payments aren't connected yet, so pick one to try it.</small></div><div class="seg" id="planSeg"><button type="button" data-plan="free">Free</button><button type="button" data-plan="pro">Pro</button><button type="button" data-plan="max">Max</button></div></div>
 </div>
 <div class="tab-content" id="tab-privacy"><h3>Privacy</h3><p class="sd-hint">You decide what gets shared.</p>
 <div class="sd-row"><div><b>Analytics</b><small>Help improve the app with anonymous usage data</small></div><label class="switch"><input type="checkbox" id="dataCollection" checked/><i></i></label></div>

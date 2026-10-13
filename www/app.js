@@ -272,7 +272,7 @@ mq.addEventListener('change',()=>setSidebar(!mobile()));
 
 /* ---------- settings popup + preferences ---------- */
 const PREFS_KEY='dailylife_prefs';
-let prefs={font:'sans',size:'m',glow:true,analytics:true,insights:true,tier:'breathe',effort:45};
+let prefs={font:'sans',size:'m',glow:true,analytics:true,insights:true,tier:'breathe',effort:45,plan:'free'};
 try{Object.assign(prefs,JSON.parse(localStorage.getItem(PREFS_KEY)||'{}'));}catch(e){}
 function applyPrefs(){
   document.body.dataset.font=prefs.font;
@@ -281,12 +281,19 @@ function applyPrefs(){
   $$('.font-choice').forEach(b=>b.classList.toggle('selected',b.dataset.font===prefs.font));
   $$('.size-choice').forEach(b=>b.classList.toggle('selected',b.dataset.size===prefs.size));
   $('#glowToggle').checked=prefs.glow;$('#dataCollection').checked=prefs.analytics;$('#shareInsights').checked=prefs.insights;
+  if(!canUse(prefs.tier))prefs.tier='breathe';
   $('#tier').value=prefs.tier;$('#effort').value=prefs.effort;renderPill();
+  if($('#currentPlan'))$('#currentPlan').textContent=PLAN_NAME[prefs.plan||'free'];
+  $$('#planSeg button').forEach(b=>b.classList.toggle('selected',b.dataset.plan===(prefs.plan||'free')));
   dispatchEvent(new Event('dl-glow'));
 }
 function setPref(k,v){prefs[k]=v;try{localStorage.setItem(PREFS_KEY,JSON.stringify(prefs));}catch(e){}applyPrefs();}
 /* ---------- model / effort / + popups (anchored above the bar) ---------- */
 const MODELS=[['breathe','Breathe','#a78bfa'],['tide','Tide','#38bdf8'],['echo','Echo','#34d399'],['orbit','Orbit','#fb923c'],['seed','Seed','#f472b6']];
+const MODEL_PLAN={breathe:'free',tide:'free',echo:'free',orbit:'pro',seed:'max'};
+const PLAN_RANK={free:0,pro:1,max:2};
+const PLAN_NAME={free:'Free',pro:'Pro',max:'Max'};
+const canUse=id=>(PLAN_RANK[prefs.plan||'free']||0)>=PLAN_RANK[MODEL_PLAN[id]];
 const EFFORTS=[['Light',15,''],['Balanced',45,'Recommended'],['Deep',75,''],['Max',100,'Longest replies']];
 const CHECK='<svg class="chk" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 const CHEV='<svg class="cv" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
@@ -295,7 +302,7 @@ const modelInfo=()=>MODELS.find(m=>m[0]===prefs.tier)||MODELS[0];
 const effortInfo=()=>EFFORTS.find(e=>e[1]===prefs.effort)||EFFORTS[1];
 function renderPill(){
   $('#modelLabel').textContent=modelInfo()[1];$('#modelDot').style.background=modelInfo()[2];$('#effortLabel').textContent=effortInfo()[0];
-  modelMenu.innerHTML=MODELS.map(m=>'<button type="button" class="mi" role="menuitemradio" aria-checked="'+(m[0]===prefs.tier)+'" data-model="'+m[0]+'"><i class="dot" style="background:'+m[2]+'"></i><span>'+m[1]+'</span>'+CHECK+'</button>').join('')+'<div class="msep"></div><button type="button" class="mi" id="effortRow" aria-haspopup="menu"><span>Effort</span><em>'+effortInfo()[0]+'</em>'+CHEV+'</button>';
+  modelMenu.innerHTML=MODELS.map(m=>{const ok=canUse(m[0]);return '<button type="button" class="mi'+(ok?'':' locked')+'" role="menuitemradio" aria-checked="'+(m[0]===prefs.tier)+'" aria-disabled="'+(!ok)+'" data-model="'+m[0]+'"><i class="dot" style="background:'+m[2]+'"></i><span>'+m[1]+'</span>'+(ok?'':'<em class="need">'+PLAN_NAME[MODEL_PLAN[m[0]]]+'</em><svg class="lk" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>')+CHECK+'</button>';}).join('')+'<div class="msep"></div><button type="button" class="mi" id="effortRow" aria-haspopup="menu"><span>Effort</span><em>'+effortInfo()[0]+'</em>'+CHEV+'</button>';
   effortMenu.innerHTML='<button type="button" class="mback" id="effortBack">‹ Back</button><p class="mhint">Higher effort gives longer, more thorough replies, but they take more time.</p>'+EFFORTS.map(e=>'<button type="button" class="mi" role="menuitemradio" aria-checked="'+(e[1]===prefs.effort)+'" data-effort="'+e[1]+'"><span>'+e[0]+'</span>'+(e[2]?'<small class="tag">'+e[2]+'</small>':'')+CHECK+'</button>').join('');
   plusMenu.innerHTML='<button type="button" class="mi" data-act="files"><span class="ic">📎</span><span>Add files</span></button><button type="button" class="mi" data-act="chat"><span class="ic">✏</span><span>New chat</span></button><button type="button" class="mi" data-act="task"><span class="ic">🗓</span><span>Add a task</span></button><button type="button" class="mi" data-act="voice"><span class="ic">🎙</span><span>Voice input</span></button>';
 }
@@ -315,7 +322,9 @@ function showEffort(){
 $('#modelBtn').onclick=()=>{const open=!modelMenu.hidden||!effortMenu.hidden;closeMenus();if(!open){placeMenu(modelMenu,$('#modelBtn'),'right');$('#modelBtn').setAttribute('aria-expanded','true');}};
 $('#plusBtn').onclick=()=>{const open=!plusMenu.hidden;closeMenus();if(!open)placeMenu(plusMenu,$('#plusBtn'),'left');};
 modelMenu.addEventListener('click',e=>{
-  const m=e.target.closest('[data-model]');if(m){setPref('tier',m.dataset.model);closeMenus();return;}
+  const m=e.target.closest('[data-model]');if(m){
+    if(!canUse(m.dataset.model)){alert(MODELS.find(x=>x[0]===m.dataset.model)[1]+' needs the '+PLAN_NAME[MODEL_PLAN[m.dataset.model]]+' plan. You can change your plan in Settings > Billing.');return;}
+    setPref('tier',m.dataset.model);closeMenus();return;}
   if(e.target.closest('#effortRow'))showEffort();
 });
 effortMenu.addEventListener('click',e=>{
@@ -361,6 +370,7 @@ function syncNav(){$$('.nav-btn').forEach(b=>b.classList.toggle('active',b.datas
 function openSettings(){renderAuth();$$('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab==='profile'));$$('.tab-content').forEach(c=>c.classList.toggle('active',c.id==='tab-profile'));sdlg.showModal();syncNav();}
 sdlg.addEventListener('click',e=>{if(e.target===sdlg)sdlg.close();});
 sdlg.addEventListener('close',syncNav);
+$$('#planSeg button').forEach(b=>b.onclick=()=>setPref('plan',b.dataset.plan));
 applyPrefs();
 start();
 
