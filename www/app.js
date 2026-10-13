@@ -91,6 +91,7 @@ const mq=matchMedia('(max-width:760px)'), mobile=()=>mq.matches;
 const setSidebar=open=>document.body.classList.toggle('sidebar-closed',!open);
 const closeOnMobile=()=>{if(mobile())setSidebar(false);};
 
+const clockEl=$('#clock');const tick=()=>{if(clockEl)clockEl.textContent=new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});};tick();setInterval(tick,15000);
 (()=>{const t=new URLSearchParams(location.search).get('token');if(t){authToken=t;try{localStorage.setItem(TOKEN_KEY,t);}catch(e){}history.replaceState(null,'',location.pathname);}})();
 async function start(){
   const had=load();
@@ -202,12 +203,7 @@ async function signOut(){
   $('#settingsDialog').close();
   forgetSession();showView('chat');
 }
-function setAuthMode(m){
-  authMode=m;authError('');$('#authCode').value='';
-  $$('.auth-tab').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
-  setStage('email');
-}
-$$('.auth-tab').forEach(b=>b.onclick=()=>setAuthMode(b.dataset.mode));
+function setAuthMode(m){authMode=m;authError('');$('#authCode').value='';setStage('email');}
 $('#authGoogle').onclick=googleSignIn;
 $('#guestBtn').onclick=()=>{guest=true;renderAuth();};
 /* ---------- email code sign in (accounts live on the server) ---------- */
@@ -216,9 +212,7 @@ const friendly=ex=>{const m=String((ex&&ex.message)||'');if(!(ex&&ex.status)&&/f
 function setStage(stage){
   otpStage=stage;const code=stage==='code';
   $('#authCode').hidden=!code;$('#authBack').hidden=!code;$('#authEmail').readOnly=code;
-  $('#authName').hidden=!(authMode==='signup')||code;
-  $('#authSubmit').textContent=code?'Verify and continue':'Send code';
-  $('#authSub').textContent=code?'Enter the 6-digit code we emailed to '+otpEmail+'.':(authMode==='signup'?'Create your account. We will email you a code to confirm it is you.':'Log in with the code we email to you.');
+  $('#authSubmit').textContent=code?'Verify and continue':'Continue';
   if(code)setTimeout(()=>$('#authCode').focus(),50);
 }
 function forgetSession(){
@@ -233,9 +227,8 @@ $('#authForm').onsubmit=async e=>{
   const btn=$('#authSubmit');btn.disabled=true;
   try{
     if(otpStage==='email'){
-      const email=$('#authEmail').value.trim().toLowerCase(), name=$('#authName').value.trim();
+      const email=$('#authEmail').value.trim().toLowerCase(), name='';
       if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('Enter a valid email address.');
-      if(authMode==='signup'&&!name)throw Error('Enter your name to create an account.');
       await api('/api/auth/otp/request',{method:'POST',body:JSON.stringify({email})});
       otpEmail=email;otpName=name;$('#authCode').value='';setStage('code');
     }else{
