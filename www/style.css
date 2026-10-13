@@ -405,3 +405,8 @@ body.no-glow #ambient{display:none}
 .mi .need{margin-left:auto;font-style:normal;font-size:11.5px;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.08);color:#a9acbb}
 .mi .lk{width:14px;height:14px;flex-shrink:0;fill:none;stroke:#8d90a0;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .mi.locked .chk{display:none}
+
+.auth-back{border:0;background:none;color:#8d90a0;font:500 13px 'Outfit','Inter',sans-serif;cursor:pointer;padding:4px}
+.auth-back:hover{color:#fff}
+.auth-back[hidden]{display:none}
+#authCode{letter-spacing:.42em;text-align:center;font-size:22px!important;font-weight:600}

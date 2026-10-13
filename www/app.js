@@ -91,6 +91,7 @@ const mq=matchMedia('(max-width:760px)'), mobile=()=>mq.matches;
 const setSidebar=open=>document.body.classList.toggle('sidebar-closed',!open);
 const closeOnMobile=()=>{if(mobile())setSidebar(false);};
 
+(()=>{const t=new URLSearchParams(location.search).get('token');if(t){authToken=t;try{localStorage.setItem(TOKEN_KEY,t);}catch(e){}history.replaceState(null,'',location.pathname);}})();
 async function start(){
   const had=load();
   renderAuth();renderAll();
@@ -110,7 +111,7 @@ async function sync(allowRemoteChats){
       history.replaceState(null,'',location.pathname);
       if(state.user.email&&!account)setAccount({name:state.user.displayName,email:state.user.email});
     }
-  }catch(e){console.warn(e);}
+  }catch(e){if(e.status===401)forgetSession();console.warn(e);}
 }
 
 $('#newChatBtn').onclick=newChat;
@@ -196,67 +197,58 @@ async function googleSignIn(){
   }
 }
 async function signOut(){
-  if(!confirm('Sign out?'))return;
-  $('#settingsDialog').close();
+  if(!confirm('Sign out? Your chats and tasks stay saved to your account.'))return;
   try{const G=googleAuth();if(G)await G.signOut();}catch(e){}
-  try{await api('/api/auth/logout',{method:'POST'});}catch(e){}
-  account=null;authToken=null;guest=false;state.user.email='';
-  try{localStorage.removeItem('dailylife_account');localStorage.removeItem(TOKEN_KEY);}catch(e){}
-  save();renderAuth();showView('chat');
+  $('#settingsDialog').close();
+  forgetSession();showView('chat');
 }
 function setAuthMode(m){
-  authMode=m;authError('');
+  authMode=m;authError('');$('#authCode').value='';
   $$('.auth-tab').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
-  $('#authName').hidden=m!=='signup';
-  $('#authPassword').autocomplete=m==='signup'?'new-password':'current-password';
-  $('#authSubmit').textContent=m==='signup'?'Create account':'Log in';
-  $('#authSub').textContent=m==='signup'?'Create your account to get started.':'Log in to pick up where you left off.';
+  setStage('email');
 }
 $$('.auth-tab').forEach(b=>b.onclick=()=>setAuthMode(b.dataset.mode));
 $('#authGoogle').onclick=googleSignIn;
 $('#guestBtn').onclick=()=>{guest=true;renderAuth();};
-// Accounts stored on this phone (used when the server has no email login). Passwords are salted + hashed, never stored as text.
-const b64=buf=>btoa(String.fromCharCode(...new Uint8Array(buf))), unb64=t=>Uint8Array.from(atob(t),c=>c.charCodeAt(0));
-async function hashPw(password,saltB64){
-  if(!(window.crypto&&crypto.subtle))throw Error("Secure storage isn't available on this device.");
-  const salt=saltB64?unb64(saltB64):crypto.getRandomValues(new Uint8Array(16));
-  const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(password),'PBKDF2',false,['deriveBits']);
-  const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt,iterations:150000,hash:'SHA-256'},key,256);
-  return {salt:b64(salt),hash:b64(bits)};
+/* ---------- email code sign in (accounts live on the server) ---------- */
+let otpStage='email', otpEmail='', otpName='';
+const friendly=ex=>{const m=String((ex&&ex.message)||'');if(!(ex&&ex.status)&&/fetch|Failed|NetworkError|Load failed/i.test(m))return "Can't reach the server right now. Check your connection and try again.";return m||'Something went wrong. Please try again.';};
+function setStage(stage){
+  otpStage=stage;const code=stage==='code';
+  $('#authCode').hidden=!code;$('#authBack').hidden=!code;$('#authEmail').readOnly=code;
+  $('#authName').hidden=!(authMode==='signup')||code;
+  $('#authSubmit').textContent=code?'Verify and continue':'Send code';
+  $('#authSub').textContent=code?'Enter the 6-digit code we emailed to '+otpEmail+'.':(authMode==='signup'?'Create your account. We will email you a code to confirm it is you.':'Log in with the code we email to you.');
+  if(code)setTimeout(()=>$('#authCode').focus(),50);
 }
-const localUsers=()=>{try{return JSON.parse(localStorage.getItem('dailylife_users')||'{}');}catch(e){return {};}};
-async function localAuth(mode,name,email,password){
-  const users=localUsers(),k=email.toLowerCase();
-  if(mode==='signup'){
-    if(users[k])throw Error('That email already has an account on this phone. Log in instead.');
-    const h=await hashPw(password);users[k]={name:name||email.split('@')[0],...h};
-    localStorage.setItem('dailylife_users',JSON.stringify(users));
-    return {name:users[k].name,email};
-  }
-  const u=users[k];if(!u)throw Error('No account found for that email. Sign up first.');
-  const h=await hashPw(password,u.salt);if(h.hash!==u.hash)throw Error('Wrong password.');
-  return {name:u.name,email};
+function forgetSession(){
+  authToken=null;account=null;guest=false;
+  try{localStorage.removeItem(TOKEN_KEY);localStorage.removeItem('dailylife_account');}catch(e){}
+  state.conversations=[blankChat()];activeId=state.conversations[0].id;state.tasks=[];state.user={displayName:'Friend',streak:1};
+  save();renderAuth();renderAll();setStage('email');
 }
+$('#authBack').onclick=()=>{$('#authCode').value='';authError('');setStage('email');};
 $('#authForm').onsubmit=async e=>{
-  e.preventDefault();
-  const email=$('#authEmail').value.trim(),password=$('#authPassword').value,name=$('#authName').value.trim();
-  if(!/^\S+@\S+\.\S+$/.test(email)){authError('Enter a valid email address.');return;}
-  if(authMode==='signup'&&password.length<8){authError('Use at least 8 characters for your password.');return;}
-  const btn=$('#authSubmit');btn.disabled=true;authError('');
+  e.preventDefault();authError('');
+  const btn=$('#authSubmit');btn.disabled=true;
   try{
-    let acc;
-    try{
-      const r=await api('/api/auth/'+(authMode==='signup'?'signup':'login'),{method:'POST',body:JSON.stringify({name,displayName:name,email,password})});
-      const u=r.user||r;
-      if(r.token){authToken=r.token;try{localStorage.setItem(TOKEN_KEY,r.token);}catch(x){}}
-      if(!(u.email||r.token))throw Object.assign(Error('no endpoint'),{status:404});
-      acc={name:u.displayName||u.name||name||email.split('@')[0],email:u.email||email};
-    }catch(ex){
-      if(ex.status&&ex.status!==404&&ex.status!==405&&ex.status<500)throw ex; // real server answer (wrong password, etc.)
-      acc=await localAuth(authMode,name,email,password); // server has no email login: account on this phone
+    if(otpStage==='email'){
+      const email=$('#authEmail').value.trim().toLowerCase(), name=$('#authName').value.trim();
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('Enter a valid email address.');
+      if(authMode==='signup'&&!name)throw Error('Enter your name to create an account.');
+      await api('/api/auth/otp/request',{method:'POST',body:JSON.stringify({email})});
+      otpEmail=email;otpName=name;$('#authCode').value='';setStage('code');
+    }else{
+      const code=$('#authCode').value.trim();
+      if(!/^\d{6}$/.test(code))throw Error('Enter the 6-digit code from the email.');
+      const r=await api('/api/auth/otp/verify',{method:'POST',body:JSON.stringify({email:otpEmail,code,name:otpName})});
+      authToken=r.token;try{localStorage.setItem(TOKEN_KEY,r.token);}catch(x){}
+      state.conversations=[blankChat()];activeId=state.conversations[0].id;state.tasks=[];
+      setAccount({name:r.user.displayName||otpName||otpEmail.split('@')[0],email:r.user.email||otpEmail});
+      await sync(true);
+      setStage('email');
     }
-    setAccount(acc);
-  }catch(ex){authError(ex.message||'Something went wrong.');}
+  }catch(ex){authError(friendly(ex));}
   btn.disabled=false;
 };
 $('#accountBtn').onclick=()=>{if(account)signOut();else{$('#settingsDialog').close();guest=false;renderAuth();}};
