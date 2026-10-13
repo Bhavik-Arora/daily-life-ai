@@ -31,16 +31,27 @@ function renderMessages(){
   box.querySelectorAll('button[data-i]').forEach(b=>b.onclick=()=>speak(msgs[+b.dataset.i]?.text));
   scrollDown();
 }
+let chatQuery='';
+function chatTitle(c){const first=c.messages.find(m=>m.role==='user')||c.messages[0];const t=((first&&first.text)||'').split('\n')[0].trim();return t||'New chat';}
+function bucket(c){const d=new Date(c.createdAt||Date.now()),now=new Date();const days=Math.round((new Date(now.getFullYear(),now.getMonth(),now.getDate())-new Date(d.getFullYear(),d.getMonth(),d.getDate()))/86400000);return days<=0?'Today':days===1?'Yesterday':days<=7?'Previous 7 days':days<=30?'Previous 30 days':'Older';}
 function renderChatHistory(){
-  const target=$('#chatHistory');
-  const list=state.conversations.filter(c=>c.messages.length||c.id===activeId).slice().reverse().slice(0,40);
-  target.innerHTML=list.map(c=>{
-    const first=c.messages.find(m=>m.role==='user')||c.messages[0], t=first?first.text:'New chat';
-    return '<div class="chat-item'+(c.id===activeId?' active':'')+'" data-id="'+escape(c.id)+'"><span class="icon">💬</span><span class="title">'+escape(t.length>30?t.slice(0,30)+'…':t)+'</span><button type="button" class="chat-del" data-del="'+escape(c.id)+'" aria-label="Delete chat" title="Delete chat">×</button></div>';
-  }).join('');
+  const target=$('#chatHistory'); if(!target)return;
+  const q=chatQuery.trim().toLowerCase();
+  const list=state.conversations.filter(c=>c.messages.length||c.id===activeId)
+    .filter(c=>!q||chatTitle(c).toLowerCase().includes(q)||c.messages.some(m=>String(m.text).toLowerCase().includes(q)))
+    .slice().reverse();
+  if(!list.length){target.innerHTML='<p class="sb-empty">'+(q?'No chats match your search':'No chats yet. Start one above.')+'</p>';return;}
+  let html='';
+  for(const label of ['Today','Yesterday','Previous 7 days','Previous 30 days','Older']){
+    const items=list.filter(c=>bucket(c)===label); if(!items.length)continue;
+    html+='<div class="sb-group"><h4>'+label+'</h4>'+items.map(c=>{const t=chatTitle(c);return '<div class="chat-item'+(c.id===activeId?' active':'')+'" data-id="'+escape(c.id)+'" title="'+escape(t)+'"><span class="title">'+escape(t.length>36?t.slice(0,36)+'…':t)+'</span><button type="button" class="chat-del" data-del="'+escape(c.id)+'" aria-label="Delete chat">×</button></div>';}).join('')+'</div>';
+  }
+  target.innerHTML=html;
   target.querySelectorAll('.chat-item').forEach(el=>el.onclick=e=>{if(e.target.closest('.chat-del'))return;selectChat(el.dataset.id);});
   target.querySelectorAll('.chat-del').forEach(b=>b.onclick=e=>{e.stopPropagation();deleteChat(b.dataset.del);});
 }
+$('#chatSearch').oninput=e=>{chatQuery=e.target.value;renderChatHistory();};
+
 function renderAll(){renderMessages();renderTasks();renderChatHistory();renderLast7Days();}
 function selectChat(id){activeId=id;prune();showView('chat');closeOnMobile();renderAll();save();}
 function deleteChat(id){
@@ -71,7 +82,7 @@ function renderCalendar(){
 $('#calPrev').onclick=()=>{shown=new Date(shown.getFullYear(),shown.getMonth()-1,1);renderCalendar();};
 $('#calNext').onclick=()=>{shown=new Date(shown.getFullYear(),shown.getMonth()+1,1);renderCalendar();};
 function renderTasks(){const target=$('#tasks'),list=tasksFor(selected);$('#dayTitle').textContent=sameDay(selected,new Date())?'Today':selected.toLocaleDateString([],{weekday:'long',month:'short',day:'numeric'});target.innerHTML=list.length?list.map(t=>'<label class="task '+(t.completed?'done':'')+'"><input type="checkbox" '+(t.completed?'checked':'')+' data-id="'+t.id+'"><span>'+escape(t.title)+'</span><small>'+(t.dueAt?new Date(t.dueAt).toLocaleString([], {weekday:'short',hour:'numeric',minute:'2-digit'}):t.routine?'Routine':'Anytime')+'</small></label>').join(''):'<p class="empty">Nothing is asking for you yet. That can be lovely.</p>';target.querySelectorAll('input').forEach(x=>x.onchange=async()=>{const task=await api('/api/tasks/'+x.dataset.id,{method:'PATCH',body:JSON.stringify({completed:x.checked})});Object.assign(state.tasks.find(t=>t.id===task.id),task);renderTasks();renderLast7Days();save();});renderCalendar();}
-function renderLast7Days(){const target=$('#last7Days');let html='';const maxChats=7;for(let i=6;i>=0;i--){let d=new Date();d.setDate(d.getDate()-i);let chats=state.conversations.filter(c=>{if(!c.createdAt||!c.messages.length)return false;let cd=new Date(c.createdAt);return cd.getFullYear()===d.getFullYear()&&cd.getMonth()===d.getMonth()&&cd.getDate()===d.getDate();}).length;html+='<div class="day-summary" title="'+d.toLocaleDateString()+' - '+chats+' chats"><span class="day-label">'+d.toLocaleDateString([],{weekday:'short'}).substring(0,1)+'</span><span class="day-bar" style="height:'+Math.round((chats/maxChats)*100)+'%"></span></div>';}target.innerHTML=html;}
+function renderLast7Days(){const target=$('#last7Days');if(!target)return;let html='';const maxChats=7;for(let i=6;i>=0;i--){let d=new Date();d.setDate(d.getDate()-i);let chats=state.conversations.filter(c=>{if(!c.createdAt||!c.messages.length)return false;let cd=new Date(c.createdAt);return cd.getFullYear()===d.getFullYear()&&cd.getMonth()===d.getMonth()&&cd.getDate()===d.getDate();}).length;html+='<div class="day-summary" title="'+d.toLocaleDateString()+' - '+chats+' chats"><span class="day-label">'+d.toLocaleDateString([],{weekday:'short'}).substring(0,1)+'</span><span class="day-bar" style="height:'+Math.round((chats/maxChats)*100)+'%"></span></div>';}target.innerHTML=html;}
 
 /* ---------- views + sidebar ---------- */
 let currentView='chat';
@@ -105,13 +116,13 @@ async function sync(allowRemoteChats){
 $('#newChatBtn').onclick=newChat;
 $('#composer').onsubmit=async e=>{
   e.preventDefault();
-  const input=$('#prompt'), message=input.value.trim();if(!message)return;
+  const input=$('#prompt'), typed=input.value.trim();if(!typed&&!pendingFiles.length)return;const files=pendingFiles;pendingFiles=[];renderTray();const {shown,payload}=buildMessage(typed,files);
   input.value='';input.style.height='auto';
   const chat=active();
-  chat.messages.push({role:'user',text:message});
+  chat.messages.push({role:'user',text:shown});
   renderMessages();renderChatHistory();save();
   try{
-    const r=await api('/api/chat',{method:'POST',body:JSON.stringify({message,tier:$('#tier').value,effort:+$('#effort').value})});
+    const r=await api('/api/chat',{method:'POST',body:JSON.stringify({message:payload,tier:$('#tier').value,effort:+$('#effort').value})});
     if(!r||!r.message)throw Error('empty');chat.messages.push(r.message);
   }catch(err){
     chat.messages.push({role:'companion',text:'I held onto your thought, but I couldn\'t respond just now. Please try again.'});
@@ -286,7 +297,7 @@ function renderPill(){
   $('#modelLabel').textContent=modelInfo()[1];$('#modelDot').style.background=modelInfo()[2];$('#effortLabel').textContent=effortInfo()[0];
   modelMenu.innerHTML=MODELS.map(m=>'<button type="button" class="mi" role="menuitemradio" aria-checked="'+(m[0]===prefs.tier)+'" data-model="'+m[0]+'"><i class="dot" style="background:'+m[2]+'"></i><span>'+m[1]+'</span>'+CHECK+'</button>').join('')+'<div class="msep"></div><button type="button" class="mi" id="effortRow" aria-haspopup="menu"><span>Effort</span><em>'+effortInfo()[0]+'</em>'+CHEV+'</button>';
   effortMenu.innerHTML='<button type="button" class="mback" id="effortBack">‹ Back</button><p class="mhint">Higher effort gives longer, more thorough replies, but they take more time.</p>'+EFFORTS.map(e=>'<button type="button" class="mi" role="menuitemradio" aria-checked="'+(e[1]===prefs.effort)+'" data-effort="'+e[1]+'"><span>'+e[0]+'</span>'+(e[2]?'<small class="tag">'+e[2]+'</small>':'')+CHECK+'</button>').join('');
-  plusMenu.innerHTML='<button type="button" class="mi" data-act="chat"><span class="ic">✏</span><span>New chat</span></button><button type="button" class="mi" data-act="task"><span class="ic">🗓</span><span>Add a task</span></button><button type="button" class="mi" data-act="voice"><span class="ic">🎙</span><span>Voice input</span></button>';
+  plusMenu.innerHTML='<button type="button" class="mi" data-act="files"><span class="ic">📎</span><span>Add files</span></button><button type="button" class="mi" data-act="chat"><span class="ic">✏</span><span>New chat</span></button><button type="button" class="mi" data-act="task"><span class="ic">🗓</span><span>Add a task</span></button><button type="button" class="mi" data-act="voice"><span class="ic">🎙</span><span>Voice input</span></button>';
 }
 function closeMenus(){allMenus.forEach(m=>{m.hidden=true;m.classList.remove('drill');});$('#modelBtn').setAttribute('aria-expanded','false');}
 function placeMenu(menu,anchor,align){
@@ -313,11 +324,38 @@ effortMenu.addEventListener('click',e=>{
 });
 plusMenu.addEventListener('click',e=>{
   const a=e.target.closest('[data-act]');if(!a)return;closeMenus();
-  if(a.dataset.act==='chat')newChat();else if(a.dataset.act==='task')$('#newTask').click();else $('#voice').click();
+  if(a.dataset.act==='chat')newChat();else if(a.dataset.act==='task')$('#newTask').click();else if(a.dataset.act==='files')$('#fileInput').click();else $('#voice').click();
 });
 document.addEventListener('pointerdown',e=>{if(allMenus.every(m=>m.hidden))return;if(e.target.closest('.menu,#plusBtn,#modelBtn'))return;closeMenus();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMenus();});
 addEventListener('resize',closeMenus);
+/* ---------- attachments ---------- */
+let pendingFiles=[];
+const fmtSize=n=>n<1024?n+' B':n<1048576?(n/1024).toFixed(1)+' KB':(n/1048576).toFixed(1)+' MB';
+const TEXTY=/^text\/|json|javascript|xml|csv/;
+const TEXT_EXT=/\.(txt|md|csv|json|js|jsx|ts|tsx|html|css|py|java|kt|xml|yml|yaml|log|c|cpp|h|go|rs|sql)$/i;
+$('#fileInput').onchange=async e=>{
+  for(const f of e.target.files){
+    if(pendingFiles.length>=8){alert('You can attach up to 8 files at a time.');break;}
+    const item={name:f.name,size:f.size,text:null};
+    if(f.size>2*1048576){item.note='too large to read (2 MB max)';}
+    else if(TEXTY.test(f.type)||TEXT_EXT.test(f.name)){item.text=(await f.text()).slice(0,20000);}
+    pendingFiles.push(item);
+  }
+  e.target.value='';renderTray();
+};
+function renderTray(){
+  const t=$('#attachTray');t.hidden=!pendingFiles.length;
+  t.innerHTML=pendingFiles.map((f,i)=>'<span class="chip" title="'+escape(f.name)+'"><span class="chip-name">'+escape(f.name)+'</span><small>'+(f.note?escape(f.note):fmtSize(f.size))+'</small><button type="button" data-i="'+i+'" aria-label="Remove '+escape(f.name)+'">×</button></span>').join('');
+  t.querySelectorAll('button').forEach(b=>b.onclick=()=>{pendingFiles.splice(+b.dataset.i,1);renderTray();});
+}
+function buildMessage(typed,files){
+  const shown=[typed,...files.map(f=>'📎 '+f.name)].filter(Boolean).join('\n');
+  const readable=files.filter(f=>f.text!==null).map(f=>'--- File: '+f.name+' ---\n'+f.text);
+  const unreadable=files.filter(f=>f.text===null).map(f=>'[Attached file: '+f.name+(f.note?' ('+f.note+')':'')+'. Contents not read.]');
+  const payload=[typed||'Please look at the attached file(s).',...unreadable,...readable].join('\n\n');
+  return {shown,payload};
+}
 const sdlg=$('#settingsDialog');
 function syncNav(){$$('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.view===(sdlg.open?'settings':currentView)));}
 function openSettings(){renderAuth();$$('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab==='profile'));$$('.tab-content').forEach(c=>c.classList.toggle('active',c.id==='tab-profile'));sdlg.showModal();syncNav();}
