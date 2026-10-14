@@ -437,3 +437,6 @@ body.no-glow #ambient{display:none}
 .welcome .auth-error{text-align:center}
 .welcome-legal{margin:14px 0 0;color:#72758a;font:400 12.5px/1.55 'Inter',sans-serif}
 .welcome .auth-guest{margin-top:2px;color:#9a9dab;font:500 14px 'Outfit','Inter',sans-serif}
+
+/* AI replies sit in a bubble on the left */
+.message.companion{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);color:#ececf1;padding:12px 16px;border-radius:18px 18px 18px 6px;max-width:min(680px,88%);align-self:flex-start}
