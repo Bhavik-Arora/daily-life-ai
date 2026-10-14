@@ -1,3 +1,4 @@
+let pendingFiles=[];
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 // APK ONLY: set this to your deployed server URL (no trailing slash), e.g. 'https://your-app.onrender.com'. Keep '' for the website.
 const API_BASE='https://daily-life-ai.onrender.com';
@@ -221,7 +222,7 @@ function forgetSession(){
   state.conversations=[blankChat()];activeId=state.conversations[0].id;state.tasks=[];state.user={displayName:'Friend',streak:1};
   save();renderAuth();renderAll();setStage('email');
 }
-$('#authBack').onclick=()=>{$('#authCode').value='';authError('');setStage('email');};
+const authBackBtn=$('#authBack');if(authBackBtn)authBackBtn.onclick=()=>{$('#authCode').value='';authError('');setStage('email');};
 $('#authForm').onsubmit=async e=>{
   e.preventDefault();authError('');
   const btn=$('#authSubmit');btn.disabled=true;
@@ -324,7 +325,6 @@ document.addEventListener('pointerdown',e=>{if(allMenus.every(m=>m.hidden))retur
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMenus();});
 addEventListener('resize',closeMenus);
 /* ---------- attachments ---------- */
-let pendingFiles=[];
 const fmtSize=n=>n<1024?n+' B':n<1048576?(n/1024).toFixed(1)+' KB':(n/1048576).toFixed(1)+' MB';
 const TEXTY=/^text\/|json|javascript|xml|csv/;
 const TEXT_EXT=/\.(txt|md|csv|json|js|jsx|ts|tsx|html|css|py|java|kt|xml|yml|yaml|log|c|cpp|h|go|rs|sql)$/i;
