@@ -93,6 +93,7 @@ const setSidebar=open=>document.body.classList.toggle('sidebar-closed',!open);
 const closeOnMobile=()=>{if(mobile())setSidebar(false);};
 
 const clockEl=$('#clock');const tick=()=>{if(clockEl)clockEl.textContent=new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});};tick();setInterval(tick,15000);
+(()=>{if(/[?&]work=drive/.test(location.search)){history.replaceState(null,'',location.pathname);setTimeout(()=>setMode('work'),400);}})();
 (()=>{const t=new URLSearchParams(location.search).get('token');if(t){authToken=t;try{localStorage.setItem(TOKEN_KEY,t);}catch(e){}history.replaceState(null,'',location.pathname);}})();
 async function start(){
   const had=load();
@@ -349,6 +350,38 @@ function buildMessage(typed,files){
   const unreadable=files.filter(f=>f.text===null).map(f=>'[Attached file: '+f.name+(f.note?' ('+f.note+')':'')+'. Contents not read.]');
   const payload=[typed||'Please look at the attached file(s).',...unreadable,...readable].join('\n\n');
   return {shown,payload};
+}
+/* ---------- Chat / Work + connectors ---------- */
+function setMode(m){
+  showView(m==='work'?'work':'chat');
+  $$('.mode-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
+  if(m==='work')refreshWork();
+}
+$$('.mode-btn').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+async function refreshWork(){
+  const note=$('#driveNote'),btn=$('#driveBtn'),list=$('#driveFiles');
+  if(!authToken){note.textContent='Log in to connect your Google Drive.';btn.hidden=true;list.innerHTML='';return;}
+  btn.hidden=false;
+  let st={connected:false};try{st=await api('/api/drive/status');}catch(e){}
+  if(!st.connected){note.textContent='Not connected';btn.textContent='Connect';btn.dataset.act='connect';list.innerHTML='';return;}
+  note.textContent='Connected · read-only';btn.textContent='Disconnect';btn.dataset.act='disconnect';
+  try{
+    const r=await api('/api/drive/files');
+    list.innerHTML=r.files.length?r.files.map(f=>'<button type="button" class="file-row" data-id="'+escape(f.id)+'"><span>'+escape(f.name)+'</span><small>'+new Date(f.modifiedTime).toLocaleDateString()+'</small></button>').join(''):'<p class="sb-empty">No files found in your Drive.</p>';
+    list.querySelectorAll('.file-row').forEach(b=>b.onclick=()=>attachDriveFile(b.dataset.id));
+  }catch(e){list.innerHTML='<p class="auth-error">'+escape(friendly(e))+'</p>';}
+}
+$('#driveBtn').onclick=async()=>{
+  if($('#driveBtn').dataset.act==='connect'){window.location.href=API_BASE+'/api/drive/connect?token='+encodeURIComponent(authToken);return;}
+  try{await api('/api/drive/disconnect',{method:'POST'});}catch(e){alert(friendly(e));}
+  refreshWork();
+};
+async function attachDriveFile(id){
+  try{
+    const f=await api('/api/drive/file?id='+encodeURIComponent(id));
+    pendingFiles.push({name:f.name,size:(f.text||'').length,text:f.text});
+    renderTray();setMode('chat');$('#prompt').focus();
+  }catch(e){alert(friendly(e));}
 }
 const sdlg=$('#settingsDialog');
 function syncNav(){$$('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.view===(sdlg.open?'settings':currentView)));}
