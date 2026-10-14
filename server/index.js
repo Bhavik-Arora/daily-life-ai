@@ -155,4 +155,7 @@ const server=http.createServer(async(req,res)=>{ try {
   if (error.code==='ENOENT') return json(res,404,{error:'Not found'});
   console.error(error); return json(res,500,{error:'Something went wrong. Your data was not changed.'});
 } });
-server.listen(PORT,()=>console.log(`Daily Life is listening on http://localhost:${PORT}`));
+server.listen(PORT,()=>{
+  console.log(`Daily Life is listening on http://localhost:${PORT}`);
+  console.log('Email sign-in key set:', Boolean(process.env.RESEND_API_KEY), '| mail from:', process.env.MAIL_FROM ? 'custom' : 'default');
+});
