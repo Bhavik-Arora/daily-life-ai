@@ -82,7 +82,7 @@ async function llmReply(message,tier,effort) {
   const response=await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
     headers:{'Content-Type':'application/json','x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01'},
-    body:JSON.stringify({model,max_tokens,system:'You are Daily Life, a warm, privacy-respecting life companion. Never call yourself an AI or assistant. Be grounded, concise, and supportive.',messages:[{role:'user',content:message}]})
+    body:JSON.stringify({model,max_tokens,system:'You are Daily Life, an advice assistant for everyday decisions, plans and problems. Give clear, practical, honest advice. Ask a short clarifying question when the situation is unclear. Be concise, warm and respectful. Remind people to check important medical, legal or financial decisions with a qualified professional.',messages:[{role:'user',content:message}]})
   });
   if(!response.ok) throw new Error('Companion service is unavailable');
   const result=await response.json();
