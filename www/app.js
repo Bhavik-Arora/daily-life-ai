@@ -25,10 +25,31 @@ function prune(){ // drop empty chats except the open one
 
 /* ---------- chats ---------- */
 function scrollDown(){setTimeout(()=>{const c=$('.chat-container');if(c)c.scrollTop=c.scrollHeight;try{window.scrollTo({top:document.body.scrollHeight});}catch(e){}},50);}
+/* ---------- formatting for AI replies (text is escaped first; only https links and images) ---------- */
+function renderMd(src){
+  const codes=[];
+  let s=escape(String(src||'')).replace(/`([^`\n]+)`/g,(_,c)=>{codes.push(c);return '\u0000'+(codes.length-1)+'\u0000';});
+  s=s.replace(/!\[([^\]\n]*)\]\((https:\/\/[^\s)]+)\)/g,(_,alt,u)=>'<img class="md-img" src="'+u+'" alt="'+alt+'" loading="lazy" referrerpolicy="no-referrer">');
+  s=s.replace(/\[([^\]\n]+)\]\((https:\/\/[^\s)]+)\)/g,(_,t,u)=>'<a href="'+u+'" target="_blank" rel="noopener noreferrer">'+t+'</a>');
+  s=s.replace(/\*\*([^*\n]+)\*\*/g,'<strong>$1</strong>').replace(/__([^_\n]+)__/g,'<strong>$1</strong>').replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g,'$1<em>$2</em>');
+  let out='', list=null;
+  const closeList=()=>{if(list){out+='</'+list+'>';list=null;}};
+  for(const raw of s.split('\n')){
+    const line=raw.trim(); let m;
+    if(line===''){closeList();continue;}
+    if((m=line.match(/^[-*•]\s+(.*)$/))){if(list!=='ul'){closeList();out+='<ul>';list='ul';}out+='<li>'+m[1]+'</li>';continue;}
+    if((m=line.match(/^\d+[.)]\s+(.*)$/))){if(list!=='ol'){closeList();out+='<ol>';list='ol';}out+='<li>'+m[1]+'</li>';continue;}
+    closeList();
+    if((m=line.match(/^#{1,3}\s+(.*)$/))){out+='<p class="md-h"><strong>'+m[1]+'</strong></p>';continue;}
+    out+='<p>'+line+'</p>';
+  }
+  closeList();
+  return out.replace(/\u0000(\d+)\u0000/g,(_,i)=>'<code>'+codes[+i]+'</code>');
+}
 function renderMessages(){
   const box=$('#messages'), msgs=active().messages;
   $('#chat').classList.toggle('has-messages',msgs.length>0);
-  box.innerHTML=msgs.length?msgs.map((m,i)=>'<div class="message '+m.role+'">'+escape(m.text)+(m.role==='companion'?'<button data-i="'+i+'" aria-label="Read aloud" title="Read aloud">◖</button>':'')+'</div>').join(''):'<p class="empty">Ready to chat?</p>';
+  box.innerHTML=msgs.length?msgs.map((m,i)=>'<div class="message '+m.role+'">'+(m.role==='companion'?renderMd(m.text):escape(m.text))+(m.role==='companion'?'<button data-i="'+i+'" aria-label="Read aloud" title="Read aloud">◖</button>':'')+'</div>').join(''):'<p class="empty">Ready to chat?</p>';
   box.querySelectorAll('button[data-i]').forEach(b=>b.onclick=()=>speak(msgs[+b.dataset.i]?.text));
   scrollDown();
 }

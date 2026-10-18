@@ -462,3 +462,14 @@ body:not(.sidebar-closed) .mode-switch{left:calc(50% + 132px)}
 .file-row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .file-row small{color:#8d90a0;flex-shrink:0}
 #work .tasks-card+.tasks-card,#work .tasks-card+.advice-card{margin-top:0}
+
+/* formatted AI replies */
+.message p{margin:0 0 8px}
+.message p:last-child{margin-bottom:0}
+.message ul,.message ol{margin:4px 0 8px;padding-left:22px}
+.message li{margin:2px 0}
+.message .md-h{margin:6px 0 4px;font-size:1.05em}
+.message strong{font-weight:600;color:#fff}
+.message code{background:rgba(255,255,255,.1);padding:1px 6px;border-radius:6px;font-size:.92em}
+.message a{color:#7fc4ff;text-decoration:underline}
+.message .md-img{display:block;max-width:100%;height:auto;border-radius:12px;margin:8px 0}
