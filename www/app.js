@@ -50,7 +50,7 @@ function renderMd(src){
 function renderMessages(){
   const box=$('#messages'), msgs=active().messages;
   $('#chat').classList.toggle('has-messages',msgs.length>0);
-  box.innerHTML=msgs.length?msgs.map((m,i)=>'<div class="message '+m.role+'">'+(m.role==='companion'?renderMd(m.text):escape(m.text))+(m.role==='companion'?'<button data-i="'+i+'" aria-label="Read aloud" title="Read aloud">◖</button>':'')+'</div>').join(''):'<p class="empty">Ready to chat?</p>';
+  box.innerHTML=msgs.length?msgs.map((m,i)=>'<div class="message '+m.role+'">'+(m.role==='companion'?renderMd(m.text):escape(m.text))+(m.role==='companion'?'<button class="icon-btn" data-i="'+i+'" aria-label="Read aloud" title="Read aloud"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg></button>':'')+'</div>').join(''):'<p class="empty">Ready to chat?</p>';
   box.querySelectorAll('button[data-i]').forEach(b=>b.onclick=()=>speak(msgs[+b.dataset.i]?.text));
   scrollDown();
 }

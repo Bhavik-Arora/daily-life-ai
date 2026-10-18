@@ -473,3 +473,12 @@ body:not(.sidebar-closed) .mode-switch{left:calc(50% + 132px)}
 .message code{background:rgba(255,255,255,.1);padding:1px 6px;border-radius:6px;font-size:.92em}
 .message a{color:#7fc4ff;text-decoration:underline}
 .message .md-img{display:block;max-width:100%;height:auto;border-radius:12px;margin:8px 0}
+
+/* proper icons for voice input and read aloud */
+.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;border:0;border-radius:50%;background:none;color:#9aa0b8;cursor:pointer;transition:.2s;font-size:0}
+.icon-btn:hover{background:rgba(255,255,255,.09);color:#fff}
+.icon-btn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.message button.icon-btn{float:none;margin:6px 0 0 0;width:30px;height:30px;color:#8d90a0;display:inline-flex}
+.message button.icon-btn svg{width:17px;height:17px}
+.message.companion{display:block}
+.input-area button#voice.icon-btn{font-size:0;padding:0;width:36px;height:36px}
