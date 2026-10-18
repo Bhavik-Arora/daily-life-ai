@@ -11,7 +11,8 @@ let activeId=state.conversations[0].id;
 const active=()=>state.conversations.find(c=>c.id===activeId)||state.conversations[0];
 const TOKEN_KEY='dailylife_token';
 let authToken=null;try{authToken=localStorage.getItem(TOKEN_KEY);}catch(e){}
-const api=(path,options={})=>fetch(API_BASE+path,{headers:{'Content-Type':'application/json',...(authToken?{Authorization:'Bearer '+authToken}:{})},...options}).then(async r=>{const data=await r.json().catch(()=>({}));if(!r.ok){const e=Error(data.error||('Request failed ('+r.status+')'));e.status=r.status;throw e;}return data;});
+function guestId(){let g=null;try{g=localStorage.getItem('dailylife_guest');}catch(e){}if(!g){g=Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>b.toString(16).padStart(2,'0')).join('');try{localStorage.setItem('dailylife_guest',g);}catch(e){}}return g;}
+const api=(path,options={})=>fetch(API_BASE+path,{headers:{'Content-Type':'application/json',...(authToken?{Authorization:'Bearer '+authToken}:{'X-Guest-Id':guestId()})},...options}).then(async r=>{const data=await r.json().catch(()=>({}));if(!r.ok){const e=Error(data.error||('Request failed ('+r.status+')'));e.status=r.status;throw e;}return data;});
 function escape(text){return String(text).replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));}
 
 /* ---------- saving (chats stay on the phone) ---------- */
