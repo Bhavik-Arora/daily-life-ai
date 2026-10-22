@@ -148,7 +148,7 @@ $('#composer').onsubmit=async e=>{
   chat.messages.push({role:'user',text:shown});
   renderMessages();renderChatHistory();save();
   try{
-    const r=await api('/api/chat',{method:'POST',body:JSON.stringify({message:payload,tier:$('#tier').value,effort:+$('#effort').value})});
+    const r=await api('/api/chat',{method:'POST',body:JSON.stringify({message:payload,tier:$('#tier').value,effort:+$('#effort').value,mode:prefs.mode||'advice'})});
     if(!r||!r.message)throw Error('empty');chat.messages.push(r.message);
   }catch(err){
     chat.messages.push({role:'companion',text:'I held onto your thought, but I couldn\'t respond just now. Please try again.'});
@@ -281,7 +281,7 @@ mq.addEventListener('change',()=>setSidebar(!mobile()));
 
 /* ---------- settings popup + preferences ---------- */
 const PREFS_KEY='dailylife_prefs';
-let prefs={font:'sans',size:'m',glow:true,analytics:true,insights:true,tier:'breathe',effort:45,plan:'free'};
+let prefs={font:'sans',size:'m',glow:true,analytics:true,insights:true,tier:'breathe',effort:45,plan:'free',mode:'advice'};
 try{Object.assign(prefs,JSON.parse(localStorage.getItem(PREFS_KEY)||'{}'));}catch(e){}
 function applyPrefs(){
   document.body.dataset.font=prefs.font;
@@ -313,7 +313,7 @@ function renderPill(){
   $('#modelLabel').textContent=modelInfo()[1];$('#modelDot').style.background=modelInfo()[2];$('#effortLabel').textContent=effortInfo()[0];
   modelMenu.innerHTML=MODELS.map(m=>{const ok=canUse(m[0]);return '<button type="button" class="mi'+(ok?'':' locked')+'" role="menuitemradio" aria-checked="'+(m[0]===prefs.tier)+'" aria-disabled="'+(!ok)+'" data-model="'+m[0]+'"><i class="dot" style="background:'+m[2]+'"></i><span>'+m[1]+'</span>'+(ok?'':'<em class="need">'+PLAN_NAME[MODEL_PLAN[m[0]]]+'</em><svg class="lk" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>')+CHECK+'</button>';}).join('')+'<div class="msep"></div><button type="button" class="mi" id="effortRow" aria-haspopup="menu"><span>Effort</span><em>'+effortInfo()[0]+'</em>'+CHEV+'</button>';
   effortMenu.innerHTML='<button type="button" class="mback" id="effortBack">‹ Back</button><p class="mhint">Higher effort gives longer, more thorough replies, but they take more time.</p>'+EFFORTS.map(e=>'<button type="button" class="mi" role="menuitemradio" aria-checked="'+(e[1]===prefs.effort)+'" data-effort="'+e[1]+'"><span>'+e[0]+'</span>'+(e[2]?'<small class="tag">'+e[2]+'</small>':'')+CHECK+'</button>').join('');
-  plusMenu.innerHTML='<button type="button" class="mi" data-act="files"><span class="ic">📎</span><span>Add files</span></button><button type="button" class="mi" data-act="chat"><span class="ic">✏</span><span>New chat</span></button><button type="button" class="mi" data-act="task"><span class="ic">🗓</span><span>Add a task</span></button><button type="button" class="mi" data-act="voice"><span class="ic">🎙</span><span>Voice input</span></button>';
+  plusMenu.innerHTML='<div class="mhint" style="margin:2px 12px 4px">Reply style</div><button type="button" class="mi" role="menuitemradio" aria-checked="'+((prefs.mode||'advice')==='advice')+'" data-mode-pick="advice"><span>Advice</span>'+CHECK+'</button><button type="button" class="mi" role="menuitemradio" aria-checked="'+((prefs.mode||'advice')==='general')+'" data-mode-pick="general"><span>General assistant</span>'+CHECK+'</button><div class="msep"></div><button type="button" class="mi" data-act="files"><span class="ic">📎</span><span>Add files</span></button><button type="button" class="mi" data-act="chat"><span class="ic">✏</span><span>New chat</span></button><button type="button" class="mi" data-act="task"><span class="ic">🗓</span><span>Add a task</span></button><button type="button" class="mi" data-act="voice"><span class="ic">🎙</span><span>Voice input</span></button>';
 }
 function closeMenus(){allMenus.forEach(m=>{m.hidden=true;m.classList.remove('drill');});$('#modelBtn').setAttribute('aria-expanded','false');}
 function placeMenu(menu,anchor,align){
@@ -341,6 +341,7 @@ effortMenu.addEventListener('click',e=>{
   if(e.target.closest('#effortBack')){effortMenu.hidden=true;effortMenu.classList.remove('drill');modelMenu.hidden=false;}
 });
 plusMenu.addEventListener('click',e=>{
+  const pick=e.target.closest('[data-mode-pick]');if(pick){setPref('mode',pick.dataset.modePick);closeMenus();return;}
   const a=e.target.closest('[data-act]');if(!a)return;closeMenus();
   if(a.dataset.act==='chat')newChat();else if(a.dataset.act==='task')$('#newTask').click();else if(a.dataset.act==='files')$('#fileInput').click();else $('#voice').click();
 });

@@ -75,7 +75,11 @@ async function sendCode(email, code) {
   if (!r.ok) { console.error('Email send failed', r.status, await r.text()); throw fail(502, "We couldn't send the email. Please try again in a moment."); }
 }
 
-async function llmReply(message,tier,effort) {
+const SYSTEM={
+  advice:'You are Daily Life, an advice assistant for everyday decisions, plans and problems. Give clear, practical, honest advice. Ask a short clarifying question when the situation is unclear. Be concise, warm and respectful. Remind people to check important medical, legal or financial decisions with a qualified professional. If asked what model or company powers Daily Life, say you are the Daily Life assistant and cannot share details about the underlying technology. If someone sincerely asks whether they are talking to an AI, always say yes.',
+  general:'You are Daily Life, a general-purpose AI assistant, like a standard chatbot. Answer any question, explain topics, write and edit text, help with code, brainstorm, summarize, translate and solve problems. Match the length to the question: short for simple questions, detailed for complex ones. Use lists, tables, code blocks and headings when they help. Be accurate, say when you are not sure, and do not add advice or wellbeing reminders unless asked. If asked what model or company powers Daily Life, say you are the Daily Life assistant and cannot share details about the underlying technology. If someone sincerely asks whether they are talking to an AI, always say yes.'
+};
+async function llmReply(message,tier,effort,mode='advice') {
   if (!process.env.ANTHROPIC_API_KEY) return companionReply(message,tier,effort);
   const tierKey={base:'BASE',pro:'PRO','ultra max':'ULTRA'}[tier] || 'BASE';
   const model=process.env[`ANTHROPIC_MODEL_${tierKey}`] || process.env.ANTHROPIC_MODEL_BASE;
@@ -83,7 +87,7 @@ async function llmReply(message,tier,effort) {
   const response=await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
     headers:{'Content-Type':'application/json','x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01'},
-    body:JSON.stringify({model,max_tokens,system:'You are Daily Life, an advice assistant for everyday decisions, plans and problems. Give clear, practical, honest advice. Ask a short clarifying question when the situation is unclear. Be concise, warm and respectful. Remind people to check important medical, legal or financial decisions with a qualified professional. If asked what model or company powers Daily Life, say you are the Daily Life assistant and cannot share details about the underlying technology. If someone sincerely asks whether they are talking to an AI, always say yes.',messages:[{role:'user',content:message}]})
+    body:JSON.stringify({model,max_tokens,system:SYSTEM[mode],messages:[{role:'user',content:message}]})
   });
   if(!response.ok) throw new Error('Companion service is unavailable');
   const result=await response.json();
@@ -114,7 +118,7 @@ const server=http.createServer(async(req,res)=>{ try {
   const url=new URL(req.url,`http://${req.headers.host}`);
   // Let the phone app (which runs from https://localhost) talk to this server
   const origin=req.headers.origin;
-  if (origin && ['https://localhost','http://localhost','capacitor://localhost'].includes(origin)) { res.setHeader('Access-Control-Allow-Origin',origin); res.setHeader('Vary','Origin'); res.setHeader('Access-Control-Allow-Methods','GET,POST,PATCH,OPTIONS'); res.setHeader('Access-Control-Allow-Headers','Content-Type,Authorization,X-Guest-Id'); }
+  if (origin && ['https://localhost','http://localhost','capacitor://localhost','https://bhavikarora.com','https://www.bhavikarora.com'].includes(origin)) { res.setHeader('Access-Control-Allow-Origin',origin); res.setHeader('Vary','Origin'); res.setHeader('Access-Control-Allow-Methods','GET,POST,PATCH,OPTIONS'); res.setHeader('Access-Control-Allow-Headers','Content-Type,Authorization,X-Guest-Id'); }
   if (req.method==='OPTIONS') { res.writeHead(204); return res.end(); }
   if (url.pathname==='/api/health') return json(res,200,{ok:true});
 
@@ -152,7 +156,7 @@ const server=http.createServer(async(req,res)=>{ try {
   if (url.pathname==='/api/bootstrap' && req.method==='GET') { const me=identity(req); const db=bootstrap(await load(me), me); bumpStreak(db.user); await save(db,me); return json(res,200,{...db, quote:'Small steps, held gently, become a life you recognize.'}); }
   if (url.pathname==='/api/tasks' && req.method==='POST') { const me=identity(req); const db=bootstrap(await load(me), me), input=await body(req); const task={id:randomUUID(),title:String(input.title||'').slice(0,200),dueAt:input.dueAt||null,routine:!!input.routine,completed:false,createdAt:new Date().toISOString()}; if(!task.title) return json(res,400,{error:'A task needs a name.'}); db.tasks.push(task); await save(db,me); return json(res,201,task); }
   if (url.pathname.startsWith('/api/tasks/') && req.method==='PATCH') { const me=identity(req); const db=bootstrap(await load(me), me), task=db.tasks.find(t=>t.id===url.pathname.split('/').pop()); if(!task) return json(res,404,{error:'Not found'}); Object.assign(task,await body(req)); await save(db,me); return json(res,200,task); }
-  if (url.pathname==='/api/chat' && req.method==='POST') { const me=identity(req); const db=bootstrap(await load(me), me), input=await body(req), conversation=db.conversations[0]; const text=String(input.message||'').trim(); if(!text) return json(res,400,{error:'Say something first.'}); const tier=['base','pro','ultra max'].includes(input.tier)?input.tier:'base', effort=Math.max(0,Math.min(100,Number(input.effort)||45)); conversation.messages.push({id:randomUUID(),role:'user',text,createdAt:new Date().toISOString(),tier,effort}); let reply; try { reply=await llmReply(text,tier,effort); } catch { reply='I’m having trouble reaching my thoughts right now. Your note is safe here—would you like to try again in a moment?'; } const answer={id:randomUUID(),role:'companion',text:reply,createdAt:new Date().toISOString(),tier,effort}; conversation.messages.push(answer); await save(db,me); return json(res,200,{message:answer}); }
+  if (url.pathname==='/api/chat' && req.method==='POST') { const me=identity(req); const db=bootstrap(await load(me), me), input=await body(req), conversation=db.conversations[0]; const text=String(input.message||'').trim(); if(!text) return json(res,400,{error:'Say something first.'}); const tier=['base','pro','ultra max'].includes(input.tier)?input.tier:'base', effort=Math.max(0,Math.min(100,Number(input.effort)||45)); conversation.messages.push({id:randomUUID(),role:'user',text,createdAt:new Date().toISOString(),tier,effort}); let reply; try { reply=await llmReply(text,tier,effort,input.mode==='general'?'general':'advice'); } catch { reply='I’m having trouble reaching my thoughts right now. Your note is safe here—would you like to try again in a moment?'; } const answer={id:randomUUID(),role:'companion',text:reply,createdAt:new Date().toISOString(),tier,effort}; conversation.messages.push(answer); await save(db,me); return json(res,200,{message:answer}); }
 
   // ---- Google Drive connector ----
   if (url.pathname==='/api/drive/connect' && req.method==='GET') {
