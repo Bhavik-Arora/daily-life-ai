@@ -205,7 +205,7 @@ const server=http.createServer(async(req,res)=>{ try {
     const code=url.searchParams.get('code'), state=url.searchParams.get('state');
     if(!code||!state||!oauthStates.delete(state)) return json(res,400,{error:'That sign-in link has expired. Please try again.'});
     const googleToken=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({code,client_id:process.env.GOOGLE_CLIENT_ID,client_secret:process.env.GOOGLE_CLIENT_SECRET,redirect_uri:authRedirect(),grant_type:'authorization_code'})}).then(r=>r.json());
-    if(!googleToken.access_token) return json(res,401,{error:'Google could not complete sign-in.'});
+    if(!googleToken.access_token){ console.error('Google sign-in token error:', googleToken.error, googleToken.error_description); return json(res,401,{error:'Google could not complete sign-in.'}); }
     const identity=await fetch('https://openidconnect.googleapis.com/v1/userinfo',{headers:{Authorization:`Bearer ${googleToken.access_token}`}}).then(r=>r.json());
     const email=normEmail(identity.email);
     if(!email) return json(res,400,{error:'Google did not share an email address.'});

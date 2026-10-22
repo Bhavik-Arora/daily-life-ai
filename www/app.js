@@ -116,7 +116,7 @@ const closeOnMobile=()=>{if(mobile())setSidebar(false);};
 
 const clockEl=$('#clock');const tick=()=>{if(clockEl)clockEl.textContent=new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});};tick();setInterval(tick,15000);
 (()=>{if(/[?&]work=drive/.test(location.search)){history.replaceState(null,'',location.pathname);setTimeout(()=>setMode('work'),400);}})();
-(()=>{const t=new URLSearchParams(location.search).get('token');if(t){authToken=t;try{localStorage.setItem(TOKEN_KEY,t);}catch(e){}history.replaceState(null,'',location.pathname);}})();
+(()=>{const t=new URLSearchParams(location.search).get('token');if(t){authToken=t;try{localStorage.setItem(TOKEN_KEY,t);}catch(e){}const u=new URL(location.href);u.searchParams.delete('token');history.replaceState(null,'',u.pathname+u.search);}})();
 async function start(){
   const had=load();
   renderAuth();renderAll();
@@ -132,6 +132,7 @@ async function sync(allowRemoteChats){
     prune();
     if($('#displayName'))$('#displayName').value=state.user.displayName||'Friend';
     renderAuth();renderAll();save();
+    if(authToken&&!account&&state.user.email){setAccount({name:state.user.displayName||state.user.email.split('@')[0],email:state.user.email});return;}
     if(/[?&]auth=google-ready/.test(location.search)){
       history.replaceState(null,'',location.pathname);
       if(state.user.email&&!account)setAccount({name:state.user.displayName,email:state.user.email});
