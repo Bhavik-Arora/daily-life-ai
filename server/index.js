@@ -97,6 +97,7 @@ function companionReply(message, tier, effort) { const intros=['I’m right here
 
 // ---- Google Drive connector (read-only) ----
 const DRIVE_SCOPE='https://www.googleapis.com/auth/drive.readonly';
+const authRedirect=()=>process.env.GOOGLE_REDIRECT_URI||'https://daily-life-ai.onrender.com/api/auth/google/callback';
 const driveRedirect=()=>process.env.GOOGLE_DRIVE_REDIRECT_URI||'https://daily-life-ai.onrender.com/api/drive/callback';
 async function driveAccessToken(email){
   const db=await load(email); const refresh=db.drive&&db.drive.refresh_token;
@@ -199,11 +200,11 @@ const server=http.createServer(async(req,res)=>{ try {
     const me=requireLogin(req); const db=await load(me); delete db.drive; await save(db,me); return json(res,200,{connected:false});
   }
 
-  if (url.pathname==='/api/auth/google') { if(!process.env.GOOGLE_CLIENT_ID) return json(res,501,{error:'Google sign-in needs configuration. Add the Google values in .env.'}); const redirect=process.env.GOOGLE_REDIRECT_URI, state=randomBytes(20).toString('hex'); oauthStates.add(state); setTimeout(()=>oauthStates.delete(state),600000).unref(); res.writeHead(302,{Location:`https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(process.env.GOOGLE_CLIENT_ID)}&redirect_uri=${encodeURIComponent(redirect)}&response_type=code&scope=openid%20email%20profile&state=${state}`}); return res.end(); }
+  if (url.pathname==='/api/auth/google') { if(!process.env.GOOGLE_CLIENT_ID) return json(res,501,{error:'Google sign-in needs configuration. Add the Google values in .env.'}); const redirect=authRedirect(), state=randomBytes(20).toString('hex'); oauthStates.add(state); setTimeout(()=>oauthStates.delete(state),600000).unref(); res.writeHead(302,{Location:`https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(process.env.GOOGLE_CLIENT_ID)}&redirect_uri=${encodeURIComponent(redirect)}&response_type=code&scope=openid%20email%20profile&state=${state}`}); return res.end(); }
   if (url.pathname==='/api/auth/google/callback') {
     const code=url.searchParams.get('code'), state=url.searchParams.get('state');
     if(!code||!state||!oauthStates.delete(state)) return json(res,400,{error:'That sign-in link has expired. Please try again.'});
-    const googleToken=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({code,client_id:process.env.GOOGLE_CLIENT_ID,client_secret:process.env.GOOGLE_CLIENT_SECRET,redirect_uri:process.env.GOOGLE_REDIRECT_URI,grant_type:'authorization_code'})}).then(r=>r.json());
+    const googleToken=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({code,client_id:process.env.GOOGLE_CLIENT_ID,client_secret:process.env.GOOGLE_CLIENT_SECRET,redirect_uri:authRedirect(),grant_type:'authorization_code'})}).then(r=>r.json());
     if(!googleToken.access_token) return json(res,401,{error:'Google could not complete sign-in.'});
     const identity=await fetch('https://openidconnect.googleapis.com/v1/userinfo',{headers:{Authorization:`Bearer ${googleToken.access_token}`}}).then(r=>r.json());
     const email=normEmail(identity.email);
