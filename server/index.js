@@ -80,6 +80,7 @@ const SYSTEM={
   general:'You are Daily Life, a general-purpose AI assistant, like a standard chatbot. Answer any question, explain topics, write and edit text, help with code, brainstorm, summarize, translate and solve problems. Match the length to the question: short for simple questions, detailed for complex ones. Use lists, tables, code blocks and headings when they help. Be accurate, say when you are not sure, and do not add advice or wellbeing reminders unless asked. If asked what model or company powers Daily Life, say you are the Daily Life assistant and cannot share details about the underlying technology. If someone sincerely asks whether they are talking to an AI, always say yes.'
 };
 async function llmReply(message,tier,effort,mode='advice') {
+  if (mode!=='general') tier='base'; // Advice uses one model
   if (!process.env.ANTHROPIC_API_KEY) return companionReply(message,tier,effort);
   const tierKey={base:'BASE',pro:'PRO','ultra max':'ULTRA'}[tier] || 'BASE';
   const model=process.env[`ANTHROPIC_MODEL_${tierKey}`] || process.env.ANTHROPIC_MODEL_BASE;

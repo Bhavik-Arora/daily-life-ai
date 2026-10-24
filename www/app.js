@@ -293,7 +293,7 @@ function applyPrefs(){
   $$('.size-choice').forEach(b=>b.classList.toggle('selected',b.dataset.size===prefs.size));
   $('#glowToggle').checked=prefs.glow;$('#dataCollection').checked=prefs.analytics;$('#shareInsights').checked=prefs.insights;
   if(!canUse(prefs.tier))prefs.tier='breathe';
-  $('#tier').value=prefs.tier;$('#effort').value=prefs.effort;renderPill();
+  $('#tier').value=prefs.mode==='advice'?'breathe':prefs.tier;$('#effort').value=prefs.effort;renderPill();
   if($('#currentPlan'))$('#currentPlan').textContent=PLAN_NAME[prefs.plan||'free'];
   $$('#planSeg button').forEach(b=>b.classList.toggle('selected',b.dataset.plan===(prefs.plan||'free')));
   dispatchEvent(new Event('dl-glow'));
@@ -309,11 +309,12 @@ const EFFORTS=[['Light',15,''],['Balanced',45,'Recommended'],['Deep',75,''],['Ma
 const CHECK='<svg class="chk" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 const CHEV='<svg class="cv" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
 const modelMenu=$('#modelMenu'),effortMenu=$('#effortMenu'),plusMenu=$('#plusMenu'),allMenus=[modelMenu,effortMenu,plusMenu];
-const modelInfo=()=>MODELS.find(m=>m[0]===prefs.tier)||MODELS[0];
+const modelInfo=()=>prefs.mode==='advice'?MODELS[0]:(MODELS.find(m=>m[0]===prefs.tier)||MODELS[0]);
+const modelList=()=>prefs.mode==='advice'?MODELS.filter(m=>m[0]==='breathe'):MODELS;
 const effortInfo=()=>EFFORTS.find(e=>e[1]===prefs.effort)||EFFORTS[1];
 function renderPill(){
   $('#modelLabel').textContent=modelInfo()[1];$('#modelDot').style.background=modelInfo()[2];$('#effortLabel').textContent=effortInfo()[0];
-  modelMenu.innerHTML=MODELS.map(m=>{const ok=canUse(m[0]);return '<button type="button" class="mi'+(ok?'':' locked')+'" role="menuitemradio" aria-checked="'+(m[0]===prefs.tier)+'" aria-disabled="'+(!ok)+'" data-model="'+m[0]+'"><i class="dot" style="background:'+m[2]+'"></i><span>'+m[1]+'</span>'+(ok?'':'<em class="need">'+PLAN_NAME[MODEL_PLAN[m[0]]]+'</em><svg class="lk" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>')+CHECK+'</button>';}).join('')+'<div class="msep"></div><button type="button" class="mi" id="effortRow" aria-haspopup="menu"><span>Effort</span><em>'+effortInfo()[0]+'</em>'+CHEV+'</button>';
+  modelMenu.innerHTML=modelList().map(m=>{const ok=canUse(m[0]);return '<button type="button" class="mi'+(ok?'':' locked')+'" role="menuitemradio" aria-checked="'+(m[0]===prefs.tier)+'" aria-disabled="'+(!ok)+'" data-model="'+m[0]+'"><i class="dot" style="background:'+m[2]+'"></i><span>'+m[1]+'</span>'+(ok?'':'<em class="need">'+PLAN_NAME[MODEL_PLAN[m[0]]]+'</em><svg class="lk" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>')+CHECK+'</button>';}).join('')+'<div class="msep"></div><button type="button" class="mi" id="effortRow" aria-haspopup="menu"><span>Effort</span><em>'+effortInfo()[0]+'</em>'+CHEV+'</button>';
   effortMenu.innerHTML='<button type="button" class="mback" id="effortBack">‹ Back</button><p class="mhint">Higher effort gives longer, more thorough replies, but they take more time.</p>'+EFFORTS.map(e=>'<button type="button" class="mi" role="menuitemradio" aria-checked="'+(e[1]===prefs.effort)+'" data-effort="'+e[1]+'"><span>'+e[0]+'</span>'+(e[2]?'<small class="tag">'+e[2]+'</small>':'')+CHECK+'</button>').join('');
   plusMenu.innerHTML='<div class="mhint" style="margin:2px 12px 4px">Reply style</div><button type="button" class="mi" role="menuitemradio" aria-checked="'+((prefs.mode||'advice')==='advice')+'" data-mode-pick="advice"><span>Advice</span>'+CHECK+'</button><button type="button" class="mi" role="menuitemradio" aria-checked="'+((prefs.mode||'advice')==='general')+'" data-mode-pick="general"><span>General assistant</span>'+CHECK+'</button><div class="msep"></div><button type="button" class="mi" data-act="files"><span class="ic">📎</span><span>Add files</span></button><button type="button" class="mi" data-act="chat"><span class="ic">✏</span><span>New chat</span></button><button type="button" class="mi" data-act="task"><span class="ic">🗓</span><span>Add a task</span></button><button type="button" class="mi" data-act="voice"><span class="ic">🎙</span><span>Voice input</span></button>';
 }
