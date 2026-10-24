@@ -502,3 +502,10 @@ body:not(.sidebar-closed) .mode-switch{left:calc(50% + 132px)}
 /* code blocks in replies */
 .message .md-pre{margin:8px 0;padding:12px 14px;border-radius:12px;background:#0b0b0e;border:1px solid rgba(255,255,255,.08);overflow-x:auto;white-space:pre}
 .message .md-pre code{background:none;padding:0;border-radius:0;font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#e6e6ef;white-space:pre}
+
+/* code blocks with language label and copy button */
+.message .md-block{margin:8px 0;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.08);background:#0b0b0e}
+.message .md-bar{display:flex;justify-content:space-between;align-items:center;padding:6px 12px;background:#18181d;color:#8d90a0;font:500 12px 'Outfit','Inter',sans-serif}
+.message .md-copy{border:0;background:none;color:#9ecbff;font:500 12px 'Outfit','Inter',sans-serif;cursor:pointer;padding:2px 6px;border-radius:6px}
+.message .md-copy:hover{background:rgba(255,255,255,.08)}
+.message .md-block .md-pre{margin:0;border:0;border-radius:0}

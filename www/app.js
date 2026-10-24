@@ -29,7 +29,7 @@ function scrollDown(){setTimeout(()=>{const c=$('.chat-container');if(c)c.scroll
 /* ---------- formatting for AI replies (text is escaped first; only https links and images) ---------- */
 function renderMd(src){
   const codes=[], fences=[];
-  const withFences=String(src||'').replace(/```[^\n]*\n?([\s\S]*?)```/g,(_,c)=>{fences.push(c.replace(/\n$/,''));return '\u0002'+(fences.length-1)+'\u0002';});
+  const withFences=String(src||'').replace(/```([^\n]*)\n?([\s\S]*?)```/g,(_,lang,c)=>{fences.push({lang:lang.trim(),code:c.replace(/\n$/,'')});return '\u0002'+(fences.length-1)+'\u0002';});
   let s=escape(withFences).replace(/`([^`\n]+)`/g,(_,c)=>{codes.push(c);return '\u0000'+(codes.length-1)+'\u0000';});
   s=s.replace(/!\[([^\]\n]*)\]\((https:\/\/[^\s)]+)\)/g,(_,alt,u)=>'<img class="md-img" src="'+u+'" alt="'+alt+'" loading="lazy" referrerpolicy="no-referrer">');
   s=s.replace(/\[([^\]\n]+)\]\((https:\/\/[^\s)]+)\)/g,(_,t,u)=>'<a href="'+u+'" target="_blank" rel="noopener noreferrer">'+t+'</a>');
@@ -39,7 +39,7 @@ function renderMd(src){
   for(const raw of s.split('\n')){
     const line=raw.trim(); let m;
     if(line===''){closeList();continue;}
-    if((m=line.match(/^\u0002(\d+)\u0002$/))){closeList();out+='<pre class="md-pre"><code>'+escape(fences[+m[1]])+'</code></pre>';continue;}
+    if((m=line.match(/^\u0002(\d+)\u0002$/))){closeList();const f=fences[+m[1]];out+='<div class="md-block"><div class="md-bar"><span>'+escape(f.lang||'code')+'</span><button type="button" class="md-copy">Copy</button></div><pre class="md-pre"><code>'+escape(f.code)+'</code></pre></div>';continue;}
     if((m=line.match(/^[-*•]\s+(.*)$/))){if(list!=='ul'){closeList();out+='<ul>';list='ul';}out+='<li>'+m[1]+'</li>';continue;}
     if((m=line.match(/^\d+[.)]\s+(.*)$/))){if(list!=='ol'){closeList();out+='<ol>';list='ol';}out+='<li>'+m[1]+'</li>';continue;}
     closeList();
@@ -54,6 +54,7 @@ function renderMessages(){
   $('#chat').classList.toggle('has-messages',msgs.length>0);
   box.innerHTML=msgs.length?msgs.map((m,i)=>'<div class="message '+m.role+'">'+(m.role==='companion'?renderMd(m.text):escape(m.text))+(m.role==='companion'?'<button class="icon-btn" data-i="'+i+'" aria-label="Read aloud" title="Read aloud"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg></button>':'')+'</div>').join(''):'<p class="empty">Ready to chat?</p>';
   box.querySelectorAll('button[data-i]').forEach(b=>b.onclick=()=>speak(msgs[+b.dataset.i]?.text));
+  box.querySelectorAll('.md-copy').forEach(b=>b.onclick=()=>{const t=b.closest('.md-block').querySelector('code').textContent;(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>{b.textContent='Copied';setTimeout(()=>b.textContent='Copy',1500);}).catch(()=>{b.textContent='Select to copy';});});
   scrollDown();
 }
 let chatQuery='';
