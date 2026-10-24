@@ -28,8 +28,9 @@ function prune(){ // drop empty chats except the open one
 function scrollDown(){setTimeout(()=>{const c=$('.chat-container');if(c)c.scrollTop=c.scrollHeight;try{window.scrollTo({top:document.body.scrollHeight});}catch(e){}},50);}
 /* ---------- formatting for AI replies (text is escaped first; only https links and images) ---------- */
 function renderMd(src){
-  const codes=[];
-  let s=escape(String(src||'')).replace(/`([^`\n]+)`/g,(_,c)=>{codes.push(c);return '\u0000'+(codes.length-1)+'\u0000';});
+  const codes=[], fences=[];
+  const withFences=String(src||'').replace(/```[^\n]*\n?([\s\S]*?)```/g,(_,c)=>{fences.push(c.replace(/\n$/,''));return '\u0002'+(fences.length-1)+'\u0002';});
+  let s=escape(withFences).replace(/`([^`\n]+)`/g,(_,c)=>{codes.push(c);return '\u0000'+(codes.length-1)+'\u0000';});
   s=s.replace(/!\[([^\]\n]*)\]\((https:\/\/[^\s)]+)\)/g,(_,alt,u)=>'<img class="md-img" src="'+u+'" alt="'+alt+'" loading="lazy" referrerpolicy="no-referrer">');
   s=s.replace(/\[([^\]\n]+)\]\((https:\/\/[^\s)]+)\)/g,(_,t,u)=>'<a href="'+u+'" target="_blank" rel="noopener noreferrer">'+t+'</a>');
   s=s.replace(/\*\*([^*\n]+)\*\*/g,'<strong>$1</strong>').replace(/__([^_\n]+)__/g,'<strong>$1</strong>').replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g,'$1<em>$2</em>');
@@ -38,6 +39,7 @@ function renderMd(src){
   for(const raw of s.split('\n')){
     const line=raw.trim(); let m;
     if(line===''){closeList();continue;}
+    if((m=line.match(/^\u0002(\d+)\u0002$/))){closeList();out+='<pre class="md-pre"><code>'+escape(fences[+m[1]])+'</code></pre>';continue;}
     if((m=line.match(/^[-*•]\s+(.*)$/))){if(list!=='ul'){closeList();out+='<ul>';list='ul';}out+='<li>'+m[1]+'</li>';continue;}
     if((m=line.match(/^\d+[.)]\s+(.*)$/))){if(list!=='ol'){closeList();out+='<ol>';list='ol';}out+='<li>'+m[1]+'</li>';continue;}
     closeList();
@@ -149,7 +151,7 @@ $('#composer').onsubmit=async e=>{
   chat.messages.push({role:'user',text:shown});
   renderMessages();renderChatHistory();save();
   try{
-    const r=await api('/api/chat',{method:'POST',body:JSON.stringify({message:payload,tier:$('#tier').value,effort:+$('#effort').value,mode:prefs.mode||'advice'})});
+    const r=await api('/api/chat',{method:'POST',body:JSON.stringify({message:payload,tier:$('#tier').value,effort:+$('#effort').value,mode:prefs.focus||prefs.mode||'advice'})});
     if(!r||!r.message)throw Error('empty');chat.messages.push(r.message);
   }catch(err){
     chat.messages.push({role:'companion',text:'I held onto your thought, but I couldn\'t respond just now. Please try again.'});
@@ -282,18 +284,19 @@ mq.addEventListener('change',()=>setSidebar(!mobile()));
 
 /* ---------- settings popup + preferences ---------- */
 const PREFS_KEY='dailylife_prefs';
-let prefs={font:'sans',size:'m',glow:true,analytics:true,insights:true,tier:'breathe',effort:45,plan:'free',mode:'advice'};
+let prefs={font:'sans',size:'m',glow:true,analytics:true,insights:true,tier:'breathe',effort:45,plan:'free',mode:'advice',focus:null};
 try{Object.assign(prefs,JSON.parse(localStorage.getItem(PREFS_KEY)||'{}'));}catch(e){}
 function applyPrefs(){
   document.body.dataset.font=prefs.font;
   document.documentElement.style.setProperty('--msg-size',{s:'14px',m:'15px',l:'17px'}[prefs.size]||'15px');
   document.body.classList.toggle('no-glow',!prefs.glow);
   $$('.font-choice').forEach(b=>b.classList.toggle('selected',b.dataset.font===prefs.font));
+  $$('.sb-mode').forEach(b=>b.classList.toggle('selected',b.dataset.focus===prefs.focus));
   $$('.mode-chip').forEach(b=>{const on=b.dataset.modeSet===(prefs.mode||'advice');b.classList.toggle('selected',on);b.setAttribute('aria-checked',on);});
   $$('.size-choice').forEach(b=>b.classList.toggle('selected',b.dataset.size===prefs.size));
   $('#glowToggle').checked=prefs.glow;$('#dataCollection').checked=prefs.analytics;$('#shareInsights').checked=prefs.insights;
   if(!canUse(prefs.tier))prefs.tier='breathe';
-  $('#tier').value=prefs.mode==='advice'?'breathe':prefs.tier;$('#effort').value=prefs.effort;renderPill();
+  $('#tier').value=(prefs.mode==='advice'&&!prefs.focus)?'breathe':prefs.tier;$('#effort').value=prefs.effort;renderPill();
   if($('#currentPlan'))$('#currentPlan').textContent=PLAN_NAME[prefs.plan||'free'];
   $$('#planSeg button').forEach(b=>b.classList.toggle('selected',b.dataset.plan===(prefs.plan||'free')));
   dispatchEvent(new Event('dl-glow'));
@@ -309,8 +312,8 @@ const EFFORTS=[['Light',15,''],['Balanced',45,'Recommended'],['Deep',75,''],['Ma
 const CHECK='<svg class="chk" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 const CHEV='<svg class="cv" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
 const modelMenu=$('#modelMenu'),effortMenu=$('#effortMenu'),plusMenu=$('#plusMenu'),allMenus=[modelMenu,effortMenu,plusMenu];
-const modelInfo=()=>prefs.mode==='advice'?MODELS[0]:(MODELS.find(m=>m[0]===prefs.tier)||MODELS[0]);
-const modelList=()=>prefs.mode==='advice'?MODELS.filter(m=>m[0]==='breathe'):MODELS;
+const modelInfo=()=>(prefs.mode==='advice'&&!prefs.focus)?MODELS[0]:(MODELS.find(m=>m[0]===prefs.tier)||MODELS[0]);
+const modelList=()=>(prefs.mode==='advice'&&!prefs.focus)?MODELS.filter(m=>m[0]==='breathe'):MODELS;
 const effortInfo=()=>EFFORTS.find(e=>e[1]===prefs.effort)||EFFORTS[1];
 function renderPill(){
   $('#modelLabel').textContent=modelInfo()[1];$('#modelDot').style.background=modelInfo()[2];$('#effortLabel').textContent=effortInfo()[0];
@@ -385,6 +388,7 @@ function setMode(m){
 }
 $$('.mode-btn').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
 $$('.mode-chip').forEach(b=>b.onclick=()=>setPref('mode',b.dataset.modeSet));
+$$('.sb-mode').forEach(b=>b.onclick=()=>setPref('focus',prefs.focus===b.dataset.focus?null:b.dataset.focus));
 async function refreshWork(){
   const note=$('#driveNote'),btn=$('#driveBtn'),list=$('#driveFiles');
   if(!authToken){note.textContent='Log in to connect your Google Drive.';btn.hidden=true;list.innerHTML='';return;}
