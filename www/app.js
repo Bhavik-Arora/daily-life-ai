@@ -289,6 +289,7 @@ function applyPrefs(){
   document.documentElement.style.setProperty('--msg-size',{s:'14px',m:'15px',l:'17px'}[prefs.size]||'15px');
   document.body.classList.toggle('no-glow',!prefs.glow);
   $$('.font-choice').forEach(b=>b.classList.toggle('selected',b.dataset.font===prefs.font));
+  $$('.mode-chip').forEach(b=>{const on=b.dataset.modeSet===(prefs.mode||'advice');b.classList.toggle('selected',on);b.setAttribute('aria-checked',on);});
   $$('.size-choice').forEach(b=>b.classList.toggle('selected',b.dataset.size===prefs.size));
   $('#glowToggle').checked=prefs.glow;$('#dataCollection').checked=prefs.analytics;$('#shareInsights').checked=prefs.insights;
   if(!canUse(prefs.tier))prefs.tier='breathe';
@@ -382,6 +383,7 @@ function setMode(m){
   if(m==='work')refreshWork();
 }
 $$('.mode-btn').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+$$('.mode-chip').forEach(b=>b.onclick=()=>setPref('mode',b.dataset.modeSet));
 async function refreshWork(){
   const note=$('#driveNote'),btn=$('#driveBtn'),list=$('#driveFiles');
   if(!authToken){note.textContent='Log in to connect your Google Drive.';btn.hidden=true;list.innerHTML='';return;}
