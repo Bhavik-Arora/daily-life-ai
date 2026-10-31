@@ -66,7 +66,7 @@ async function sendCode(email, code) {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: process.env.MAIL_FROM || 'Daily Life <onboarding@resend.dev>',
+      from: process.env.MAIL_FROM || 'Daily Life <noreply@dailylyf.com>',
       to: [email],
       subject: 'Your Daily Life code',
       html: `<p>Your Daily Life code is:</p><p style="font-size:28px;font-weight:700;letter-spacing:4px">${code}</p><p>It expires in 10 minutes. If you didn't ask for this, you can ignore this email.</p>`
