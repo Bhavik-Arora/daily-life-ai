@@ -102,8 +102,8 @@ function companionReply(message, tier, effort) { const intros=['I’m right here
 
 // ---- Google Drive connector (read-only) ----
 const DRIVE_SCOPE='https://www.googleapis.com/auth/drive.readonly';
-const authRedirect=()=>process.env.GOOGLE_REDIRECT_URI||'https://daily-life-ai.onrender.com/api/auth/google/callback';
-const driveRedirect=()=>process.env.GOOGLE_DRIVE_REDIRECT_URI||'https://daily-life-ai.onrender.com/api/drive/callback';
+const authRedirect=()=>process.env.GOOGLE_REDIRECT_URI||'https://dailylyf.com/api/auth/google/callback';
+const driveRedirect=()=>process.env.GOOGLE_DRIVE_REDIRECT_URI||'https://dailylyf.com/api/drive/callback';
 async function driveAccessToken(email){
   const db=await load(email); const refresh=db.drive&&db.drive.refresh_token;
   if(!refresh) throw fail(409,'Google Drive is not connected yet.');
