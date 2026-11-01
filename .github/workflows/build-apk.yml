@@ -1,20 +1,28 @@
+
 name: Build APK
 
 on:
   push:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
 
-      - uses: actions/setup-java@v4
+      - name: Setup Java
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 21
@@ -22,21 +30,72 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build web app
+      - name: Build web application
         run: npm run build --if-present
 
       - name: Sync Capacitor
         run: npx cap sync android
 
-      - name: Make gradlew executable
+      - name: Ensure Cordova plugins namespace
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          file = Path(
+              "android/capacitor-cordova-android-plugins/build.gradle"
+          )
+
+          if not file.exists():
+              raise SystemExit(f"Missing file: {file}")
+
+          content = file.read_text()
+
+          match = re.search(r'\bandroid\s*\{', content)
+
+          if not match:
+              raise SystemExit("Could not find android { block")
+
+          # Check for namespace inside the Android configuration block.
+          start = match.end()
+          depth = 1
+          i = start
+
+          while i < len(content) and depth:
+              if content[i] == '{':
+                  depth += 1
+              elif content[i] == '}':
+                  depth -= 1
+              i += 1
+
+          block = content[start:i-1]
+
+          if not re.search(r'^\s*namespace\s*(?:=|\s)',
+                           block, re.MULTILINE):
+              insertion = '\n    namespace = "capacitor.cordova.android.plugins"'
+              content = content[:start] + insertion + content[start:]
+              file.write_text(content)
+
+          print("Final Cordova Gradle configuration:")
+          print(file.read_text())
+          PY
+
+      - name: Verify Android Gradle configuration
+        run: |
+          echo "Checking Cordova plugin namespace..."
+          grep -n "namespace" android/capacitor-cordova-android-plugins/build.gradle
+
+      - name: Make Gradle executable
         run: chmod +x android/gradlew
 
-      - name: Build APK
+      - name: Build debug APK
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
+          name: Daily-Life-AI-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
