@@ -66,7 +66,7 @@ async function sendCode(email, code) {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: process.env.MAIL_FROM || 'Daily Life <noreply@dailylyf.com>',
+      from: process.env.MAIL_FROM || 'Daily Life <onboarding@resend.dev>',
       to: [email],
       subject: 'Your Daily Life code',
       html: `<p>Your Daily Life code is:</p><p style="font-size:28px;font-weight:700;letter-spacing:4px">${code}</p><p>It expires in 10 minutes. If you didn't ask for this, you can ignore this email.</p>`
@@ -102,8 +102,8 @@ function companionReply(message, tier, effort) { const intros=['I’m right here
 
 // ---- Google Drive connector (read-only) ----
 const DRIVE_SCOPE='https://www.googleapis.com/auth/drive.readonly';
-const authRedirect=()=>process.env.GOOGLE_REDIRECT_URI||'https://dailylyf.com/api/auth/google/callback';
-const driveRedirect=()=>process.env.GOOGLE_DRIVE_REDIRECT_URI||'https://dailylyf.com/api/drive/callback';
+const authRedirect=()=>process.env.GOOGLE_REDIRECT_URI||'https://daily-life-ai.onrender.com/api/auth/google/callback';
+const driveRedirect=()=>process.env.GOOGLE_DRIVE_REDIRECT_URI||'https://daily-life-ai.onrender.com/api/drive/callback';
 async function driveAccessToken(email){
   const db=await load(email); const refresh=db.drive&&db.drive.refresh_token;
   if(!refresh) throw fail(409,'Google Drive is not connected yet.');
