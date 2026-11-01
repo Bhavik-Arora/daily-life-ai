@@ -12,86 +12,116 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Get repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2. Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
+      # 3. Setup Java
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 21
 
+      # 4. Install dependencies
       - name: Install dependencies
         run: npm install
 
-      - name: Build web application
+      # 5. Build web application
+      - name: Build web app
         run: npm run build --if-present
 
+      # 6. Sync Capacitor
       - name: Sync Capacitor
         run: npx cap sync android
 
-      - name: Ensure Cordova plugins namespace
+      # 7. Fix generated Android configuration
+      - name: Fix Cordova Android configuration
+        shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import re
 
-          file = Path(
+          gradle = Path(
               "android/capacitor-cordova-android-plugins/build.gradle"
           )
 
-          if not file.exists():
-              raise SystemExit(f"Missing file: {file}")
+          manifest = Path(
+              "android/capacitor-cordova-android-plugins/src/main/AndroidManifest.xml"
+          )
 
-          content = file.read_text()
+          if not gradle.exists():
+              raise SystemExit("ERROR: Cordova build.gradle not found")
 
-          match = re.search(r'\bandroid\s*\{', content)
+          if not manifest.exists():
+              raise SystemExit("ERROR: AndroidManifest.xml not found")
 
-          if not match:
-              raise SystemExit("Could not find android { block")
+          # Ensure Gradle namespace exists
+          gradle_text = gradle.read_text(encoding="utf-8")
 
-          # Check for namespace inside the Android configuration block.
-          start = match.end()
-          depth = 1
-          i = start
+          android_match = re.search(r'\bandroid\s*\{', gradle_text)
 
-          while i < len(content) and depth:
-              if content[i] == '{':
-                  depth += 1
-              elif content[i] == '}':
-                  depth -= 1
-              i += 1
+          if not android_match:
+              raise SystemExit("ERROR: Android block not found")
 
-          block = content[start:i-1]
+          if not re.search(r'^\s*namespace\s*=', gradle_text, re.M):
+              position = android_match.end()
+              gradle_text = (
+                  gradle_text[:position]
+                  + '\n    namespace = "capacitor.cordova.android.plugins"'
+                  + gradle_text[position:]
+              )
+              gradle.write_text(gradle_text, encoding="utf-8")
 
-          if not re.search(r'^\s*namespace\s*(?:=|\s)',
-                           block, re.MULTILINE):
-              insertion = '\n    namespace = "capacitor.cordova.android.plugins"'
-              content = content[:start] + insertion + content[start:]
-              file.write_text(content)
+          # Remove obsolete package attribute from manifest root
+          manifest_text = manifest.read_text(encoding="utf-8")
 
-          print("Final Cordova Gradle configuration:")
-          print(file.read_text())
+          fixed_text, count = re.subn(
+              r'(<manifest\b[^>]*?)\s+package\s*=\s*(["\'])[^"\']*\2',
+              r'\1',
+              manifest_text,
+              count=1,
+              flags=re.S
+          )
+
+          if count:
+              manifest.write_text(fixed_text, encoding="utf-8")
+
+          # Verify manifest no longer has package attribute
+          final_text = manifest.read_text(encoding="utf-8")
+          root = re.search(r'<manifest\b[^>]*>', final_text, re.S)
+
+          if not root:
+              raise SystemExit("ERROR: Invalid Android manifest")
+
+          if re.search(r'\bpackage\s*=', root.group()):
+              raise SystemExit("ERROR: Manifest package attribute remains")
+
+          if not re.search(r'^\s*namespace\s*=', 
+                           gradle.read_text(encoding="utf-8"), re.M):
+              raise SystemExit("ERROR: Gradle namespace missing")
+
+          print("SUCCESS: Gradle namespace verified")
+          print("SUCCESS: Manifest package attribute removed")
           PY
 
-      - name: Verify Android Gradle configuration
-        run: |
-          echo "Checking Cordova plugin namespace..."
-          grep -n "namespace" android/capacitor-cordova-android-plugins/build.gradle
-
+      # 8. Verify Java and Gradle
       - name: Make Gradle executable
         run: chmod +x android/gradlew
 
-      - name: Build debug APK
+      # 9. Build APK
+      - name: Build Android APK
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon --stacktrace
 
+      # 10. Upload APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
