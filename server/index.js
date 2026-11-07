@@ -102,6 +102,7 @@ function companionReply(message, tier, effort) { const intros=['I’m right here
 
 // ---- Google Drive connector (read-only) ----
 const DRIVE_SCOPE='https://www.googleapis.com/auth/drive.readonly';
+const APP_URL=()=>process.env.APP_URL||'https://dailylyf.com';
 const authRedirect=()=>process.env.GOOGLE_REDIRECT_URI||'https://daily-life-ai.onrender.com/api/auth/google/callback';
 const driveRedirect=()=>process.env.GOOGLE_DRIVE_REDIRECT_URI||'https://daily-life-ai.onrender.com/api/drive/callback';
 async function driveAccessToken(email){
@@ -124,7 +125,7 @@ const server=http.createServer(async(req,res)=>{ try {
   const url=new URL(req.url,`http://${req.headers.host}`);
   // Let the phone app (which runs from https://localhost) talk to this server
   const origin=req.headers.origin;
-  if (origin && ['https://localhost','http://localhost','capacitor://localhost','https://bhavikarora.com','https://www.bhavikarora.com'].includes(origin)) { res.setHeader('Access-Control-Allow-Origin',origin); res.setHeader('Vary','Origin'); res.setHeader('Access-Control-Allow-Methods','GET,POST,PATCH,OPTIONS'); res.setHeader('Access-Control-Allow-Headers','Content-Type,Authorization,X-Guest-Id'); }
+  if (origin && ['https://localhost','http://localhost','capacitor://localhost','https://dailylyf.com','https://www.dailylyf.com','https://bhavikarora.com','https://www.bhavikarora.com'].includes(origin)) { res.setHeader('Access-Control-Allow-Origin',origin); res.setHeader('Vary','Origin'); res.setHeader('Access-Control-Allow-Methods','GET,POST,PATCH,OPTIONS'); res.setHeader('Access-Control-Allow-Headers','Content-Type,Authorization,X-Guest-Id'); }
   if (req.method==='OPTIONS') { res.writeHead(204); return res.end(); }
   if (url.pathname==='/api/health') return json(res,200,{ok:true});
 
@@ -178,7 +179,7 @@ const server=http.createServer(async(req,res)=>{ try {
     const t=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({code,client_id:process.env.GOOGLE_CLIENT_ID,client_secret:process.env.GOOGLE_CLIENT_SECRET,redirect_uri:driveRedirect(),grant_type:'authorization_code'})}).then(r=>r.json());
     if (!t.refresh_token) return json(res,400,{error:'Google did not give Drive access. Remove this app from your Google account permissions and connect again.'});
     const db=bootstrap(await load(email),email); db.drive={refresh_token:t.refresh_token,connectedAt:new Date().toISOString()}; await save(db,email);
-    res.writeHead(302,{Location:'/?work=drive'}); return res.end();
+    res.writeHead(302,{Location:APP_URL()+'/?work=drive'}); return res.end();
   }
   if (url.pathname==='/api/drive/status' && req.method==='GET') {
     const me=identity(req); if (!me) return json(res,200,{connected:false});
@@ -217,7 +218,7 @@ const server=http.createServer(async(req,res)=>{ try {
     const db=bootstrap(await load(email), email);
     Object.assign(db.user,{email,displayName:identity.given_name||identity.name||db.user.displayName,avatarUrl:identity.picture||null});
     await save(db,email);
-    res.writeHead(302,{Location:'/?auth=google-ready&token='+encodeURIComponent(makeToken(email))}); return res.end();
+    res.writeHead(302,{Location:APP_URL()+'/?auth=google-ready&token='+encodeURIComponent(makeToken(email))}); return res.end();
   }
 
   let path=url.pathname==='/'?'/index.html':url.pathname; path=path.replaceAll('..',''); const file=join(PUBLIC,path); await stat(file); res.writeHead(200,{'Content-Type':types[extname(file)]||'application/octet-stream'}); res.end(await readFile(file));
