@@ -36,6 +36,14 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
+      - name: Fix Cordova plugin namespace
+        run: |
+          F=android/capacitor-cordova-android-plugins/build.gradle
+          if [ -f "$F" ] && ! grep -q "namespace" "$F"; then
+            sed -i '0,/android {/s//android {\n    namespace "capacitor.cordova.android.plugins"/' "$F"
+          fi
+          grep -n "namespace" "$F" || true
+
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
