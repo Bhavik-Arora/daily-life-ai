@@ -121,6 +121,22 @@ function identity(req){
 }
 function requireLogin(req){ const me=identity(req); if(!me) throw fail(401,'Log in to use connectors.'); return me; }
 
+// Short summary title for a chat (used in the sidebar). Returns null if unavailable.
+async function makeTitle(text) {
+  if (!process.env.ANTHROPIC_API_KEY || !text.trim()) return null;
+  try {
+    const model=process.env.ANTHROPIC_MODEL_BASE;
+    const r=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01'},
+      body:JSON.stringify({model,max_tokens:30,system:'Write a short title of 3 to 6 words that summarises this conversation. Reply with the title only. No quotes, no full stop.',messages:[{role:'user',content:text}]})
+    });
+    if (!r.ok) return null;
+    const data=await r.json();
+    const t=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join(' ').replace(/["“”'`*#]/g,'').replace(/[.!?:]+$/,'').trim();
+    return t ? t.slice(0,60) : null;
+  } catch { return null; }
+}
 const server=http.createServer(async(req,res)=>{ try {
   const url=new URL(req.url,`http://${req.headers.host}`);
   // Let the phone app (which runs from https://localhost) talk to this server
@@ -206,6 +222,11 @@ const server=http.createServer(async(req,res)=>{ try {
     const me=requireLogin(req); const db=await load(me); delete db.drive; await save(db,me); return json(res,200,{connected:false});
   }
 
+  if (url.pathname==='/api/title' && req.method==='POST') {
+    identity(req);
+    const input=await body(req);
+    return json(res,200,{title: await makeTitle(String(input.text||'').slice(0,1500))});
+  }
   if (url.pathname==='/api/auth/google') { if(!process.env.GOOGLE_CLIENT_ID) return json(res,501,{error:'Google sign-in needs configuration. Add the Google values in .env.'}); const redirect=authRedirect(), state=randomBytes(20).toString('hex'); oauthStates.add(state); setTimeout(()=>oauthStates.delete(state),600000).unref(); res.writeHead(302,{Location:`https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(process.env.GOOGLE_CLIENT_ID)}&redirect_uri=${encodeURIComponent(redirect)}&response_type=code&scope=openid%20email%20profile&state=${state}`}); return res.end(); }
   if (url.pathname==='/api/auth/google/callback') {
     const code=url.searchParams.get('code'), state=url.searchParams.get('state');
