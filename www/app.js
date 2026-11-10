@@ -58,7 +58,7 @@ function renderMessages(){
   scrollDown();
 }
 let chatQuery='';
-function chatTitle(c){const first=c.messages.find(m=>m.role==='user')||c.messages[0];const t=((first&&first.text)||'').split('\n')[0].trim();return t||'New chat';}
+function chatTitle(c){if(c.title)return c.title;const first=c.messages.find(m=>m.role==='user')||c.messages[0];const t=((first&&first.text)||'').split('\n')[0].trim();return t||'New chat';}
 function bucket(c){const d=new Date(c.createdAt||Date.now()),now=new Date();const days=Math.round((new Date(now.getFullYear(),now.getMonth(),now.getDate())-new Date(d.getFullYear(),d.getMonth(),d.getDate()))/86400000);return days<=0?'Today':days===1?'Yesterday':days<=7?'Previous 7 days':days<=30?'Previous 30 days':'Older';}
 function renderChatHistory(){
   const target=$('#chatHistory'); if(!target)return;
@@ -158,6 +158,7 @@ $('#composer').onsubmit=async e=>{
     chat.messages.push({role:'companion',text:'I held onto your thought, but I couldn\'t respond just now. Please try again.'});
   }
   renderMessages();renderChatHistory();renderLast7Days();save();
+  ensureTitle(chat);
 };
 $('#prompt').oninput=e=>{e.target.style.height='auto';e.target.style.height=Math.min(e.target.scrollHeight,120)+'px';};
 
@@ -414,6 +415,15 @@ async function attachDriveFile(id){
     pendingFiles.push({name:f.name,size:(f.text||'').length,text:f.text});
     renderTray();setMode('chat');$('#prompt').focus();
   }catch(e){alert(friendly(e));}
+}
+async function ensureTitle(chat){
+  if(chat.title)return;
+  const first=chat.messages.find(m=>m.role==='user'), reply=chat.messages.find(m=>m.role==='companion');
+  if(!first)return;
+  try{
+    const r=await api('/api/title',{method:'POST',body:JSON.stringify({text:first.text+(reply?'\n\nReply: '+reply.text.slice(0,400):'')})});
+    if(r.title){chat.title=r.title;save();renderChatHistory();}
+  }catch(e){}
 }
 const sdlg=$('#settingsDialog');
 function syncNav(){$$('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.view===(sdlg.open?'settings':currentView)));}
