@@ -43,6 +43,8 @@ jobs:
             sed -i '0,/android {/s//android {\n    namespace "capacitor.cordova.android.plugins"/' "$F"
           fi
           grep -n "namespace" "$F" || true
+          M=android/capacitor-cordova-android-plugins/src/main/AndroidManifest.xml
+          if [ -f "$M" ]; then sed -i 's/ package="[^"]*"//' "$M"; fi
 
       - name: Make gradlew executable
         run: chmod +x android/gradlew
