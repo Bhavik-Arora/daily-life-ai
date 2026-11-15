@@ -509,3 +509,23 @@ body:not(.sidebar-closed) .mode-switch{left:calc(50% + 132px)}
 .message .md-copy{border:0;background:none;color:#9ecbff;font:500 12px 'Outfit','Inter',sans-serif;cursor:pointer;padding:2px 6px;border-radius:6px}
 .message .md-copy:hover{background:rgba(255,255,255,.08)}
 .message .md-block .md-pre{margin:0;border:0;border-radius:0}
+
+/* ================= Research and Design screens ================= */
+.spec{height:calc(100vh - 150px);height:calc(100dvh - 150px);max-width:820px;width:100%;margin:0 auto;padding:0 16px;display:flex;flex-direction:column;gap:14px;align-items:stretch}
+.spec-head{text-align:center;padding-top:10px}
+.spec-head h1{font-size:clamp(30px,4.5vw,44px);margin:6px 0 4px}
+.spec-tag{display:inline-block;padding:5px 12px;border-radius:999px;border:1px solid rgba(75,159,232,.4);color:#9ecbff;font:600 12px 'Outfit','Inter',sans-serif;letter-spacing:.06em;text-transform:uppercase}
+.spec-sub{margin:0;color:#8d90a0;font:400 15px 'Outfit','Inter',sans-serif}
+.spec-list{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:8px 4px}
+.spec-list .message{max-width:92%}
+.spec-form{display:flex;gap:10px;align-items:flex-end;padding:12px 14px;border-radius:22px;border:1px solid rgba(255,255,255,.12);background:rgba(10,10,13,.85);backdrop-filter:blur(14px)}
+.spec-form textarea{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#fff;font:16px 'Outfit','Inter',sans-serif;padding:8px 4px;resize:none;max-height:140px}
+.spec-form textarea::placeholder{color:#72758a}
+.spec-form .send-btn{flex-shrink:0}
+.preview-dialog{width:min(900px,94vw);height:min(80vh,720px);padding:0;border:1px solid rgba(255,255,255,.12);border-radius:18px;background:#fff;overflow:hidden;display:flex;flex-direction:column}
+.preview-dialog[open]{display:flex}
+.preview-dialog::backdrop{background:rgba(3,3,6,.7)}
+.preview-bar{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#111;color:#fff;font:500 14px 'Outfit','Inter',sans-serif}
+.preview-bar .close{position:static;color:#ccc;font-size:22px}
+#previewFrame{flex:1;width:100%;border:0;background:#fff}
+.message .md-copy.md-prev{color:#7fc4ff}
