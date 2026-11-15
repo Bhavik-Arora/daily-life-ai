@@ -222,6 +222,21 @@ const server=http.createServer(async(req,res)=>{ try {
     const me=requireLogin(req); const db=await load(me); delete db.drive; await save(db,me); return json(res,200,{connected:false});
   }
 
+  if (url.pathname==='/api/speak' && req.method==='POST') {
+    identity(req);
+    if (!process.env.ELEVENLABS_API_KEY || !process.env.ELEVENLABS_VOICE_ID) return json(res,503,{error:'Voice is not set up on the server yet.'});
+    const input=await body(req);
+    const text=String(input.text||'').trim().slice(0,2000);
+    if (!text) return json(res,400,{error:'Nothing to say.'});
+    const r=await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(process.env.ELEVENLABS_VOICE_ID)}`,{
+      method:'POST',
+      headers:{'xi-api-key':process.env.ELEVENLABS_API_KEY,'Content-Type':'application/json',Accept:'audio/mpeg'},
+      body:JSON.stringify({text,model_id:process.env.ELEVENLABS_MODEL||'eleven_multilingual_v2'})
+    });
+    if (!r.ok) { console.error('ElevenLabs error', r.status, await r.text()); return json(res,502,{error:"Couldn't generate the voice right now."}); }
+    res.writeHead(200,{'Content-Type':'audio/mpeg','Cache-Control':'no-store'});
+    res.end(Buffer.from(await r.arrayBuffer())); return;
+  }
   if (url.pathname==='/api/title' && req.method==='POST') {
     identity(req);
     const input=await body(req);
