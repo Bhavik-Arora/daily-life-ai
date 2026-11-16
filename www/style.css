@@ -529,3 +529,27 @@ body:not(.sidebar-closed) .mode-switch{left:calc(50% + 132px)}
 .preview-bar .close{position:static;color:#ccc;font-size:22px}
 #previewFrame{flex:1;width:100%;border:0;background:#fff}
 .message .md-copy.md-prev{color:#7fc4ff}
+
+/* ================= Back button on Research and Design ================= */
+.spec-back{align-self:flex-start;margin-top:6px;padding:7px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#c9ccd9;font:500 13px 'Outfit','Inter',sans-serif;cursor:pointer;transition:.2s}
+.spec-back:hover{background:rgba(255,255,255,.1);color:#fff}
+
+/* ================= Collapsed sidebar: icon rail on desktop (ChatGPT style) ================= */
+@media(min-width:761px){
+  body.sidebar-closed .sidebar{transform:none;width:60px;padding:12px 8px;align-items:center;overflow:hidden}
+  body.sidebar-closed .sb-top{flex-direction:column;gap:12px;padding:4px 0 2px;width:100%}
+  body.sidebar-closed .sb-brand span{display:none}
+  body.sidebar-closed .sb-new{width:40px;height:40px;padding:0;justify-content:center;border-radius:12px}
+  body.sidebar-closed .sb-new span{display:none}
+  body.sidebar-closed .sb-search{width:40px;height:40px;padding:0;justify-content:center;border-radius:12px}
+  body.sidebar-closed .sb-search input{display:none}
+  body.sidebar-closed .sb-modes{align-items:center;width:100%}
+  body.sidebar-closed .sb-modes h4,body.sidebar-closed .sb-list{display:none}
+  body.sidebar-closed .sb-mode{width:40px;height:40px;padding:0;justify-content:center;border-radius:12px}
+  body.sidebar-closed .sb-mode span{display:none}
+  body.sidebar-closed .app{margin-left:60px;width:calc(100% - 60px)}
+  body.sidebar-closed .chat-card{left:60px}
+  body.sidebar-closed .bottom-nav{left:60px}
+  body.sidebar-closed .mode-switch{left:calc(50% + 30px)}
+  body.sidebar-closed .sidebar-open{display:none}
+}
