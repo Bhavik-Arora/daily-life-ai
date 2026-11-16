@@ -442,11 +442,17 @@ async function ensureTitle(chat){
   }catch(e){}
 }
 /* ---------- Research and Design screens ---------- */
+function previewDoc(code){
+  const c=String(code||'');
+  if(/<html[\s>]/i.test(c))return c;
+  return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:24px;font-family:system-ui,Arial,sans-serif;color:#111;background:#fff}</style></head><body>'+c+'</body></html>';
+}
+
 function renderSpec(mode){
   const box=$(mode==='research'?'#resList':'#desList'), msgs=state.specialist[mode]||[];
   box.innerHTML=msgs.length?msgs.map(m=>'<div class="message '+m.role+'">'+(m.role==='companion'?renderMd(m.text):escape(m.text))+'</div>').join(''):'<p class="empty">'+(mode==='research'?'Ask something that needs facts and sources.':'Describe a screen, layout or colour scheme.')+'</p>';
   box.querySelectorAll('.md-copy:not(.md-prev)').forEach(b=>b.onclick=()=>{const t=b.closest('.md-block').querySelector('code').textContent;(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>{b.textContent='Copied';setTimeout(()=>b.textContent='Copy',1500);}).catch(()=>{b.textContent='Select to copy';});});
-  box.querySelectorAll('.md-prev').forEach(b=>b.onclick=()=>{$('#previewFrame').srcdoc=b.closest('.md-block').querySelector('code').textContent;$('#previewDialog').showModal();});
+  box.querySelectorAll('.md-prev').forEach(b=>b.onclick=()=>{$('#previewFrame').srcdoc=previewDoc(b.closest('.md-block').querySelector('code').textContent);$('#previewDialog').showModal();});
   box.scrollTop=box.scrollHeight;
 }
 async function sendSpec(mode,text){
@@ -459,6 +465,7 @@ async function sendSpec(mode,text){
 $('#resForm').onsubmit=e=>{e.preventDefault();const i=$('#resPrompt'),t=i.value.trim();if(!t)return;i.value='';sendSpec('research',t);};
 $('#desForm').onsubmit=e=>{e.preventDefault();const i=$('#desPrompt'),t=i.value.trim();if(!t)return;i.value='';sendSpec('design',t);};
 $('#previewClose').onclick=()=>$('#previewDialog').close();
+$$('.spec-back').forEach(b=>b.onclick=()=>showView('chat'));
 $('#previewDialog').addEventListener('click',e=>{if(e.target===$('#previewDialog'))$('#previewDialog').close();});
 const sdlg=$('#settingsDialog');
 function syncNav(){$$('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.view===(sdlg.open?'settings':currentView)));}
